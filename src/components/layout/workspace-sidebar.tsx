@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   PanelLeftClose,
@@ -16,6 +17,13 @@ const navigationLabel =
 const iconClass = "size-5 shrink-0 stroke-[1.6]";
 
 export function WorkspaceSidebar() {
+  const pathname = usePathname();
+  let calendarCurrent: "page" | undefined;
+
+  if (pathname === "/") {
+    calendarCurrent = "page";
+  }
+
   const [expanded, setExpanded] = useState(false);
   let toggleLabel = "Expand sidebar";
 
@@ -54,7 +62,7 @@ export function WorkspaceSidebar() {
         <Link
           href="/"
           className={`${navigationItem} bg-sidebar-accent font-[550] text-sidebar-accent-foreground`}
-          aria-current="page"
+          aria-current={calendarCurrent}
           aria-label="Calendar"
           title="Calendar"
         >

@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { z } from "zod";
-import { toCents } from "../../../lib/money";
+import { largerCents, smallerCents, toCents } from "../../../lib/money";
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const MAX_TRADES = 50_000;
@@ -102,9 +102,12 @@ export function parseJson(text: string): TradeFile {
 }
 
 export function summarizeTrades(trades: Trade[]) {
+  const amounts = trades.map((trade) => toCents(trade.netPnl));
   return {
     count: trades.length,
     net: trades.reduce((sum, trade) => sum + toCents(trade.netPnl), BigInt(0)),
-    wins: trades.filter((trade) => toCents(trade.netPnl) > BigInt(0)).length,
+    wins: amounts.filter((amount) => amount > BigInt(0)).length,
+    largestWin: amounts.reduce(largerCents, BigInt(0)),
+    largestLoss: amounts.reduce(smallerCents, BigInt(0)),
   };
 }

@@ -1,6 +1,6 @@
 # Tradelyzer Daily Journal
 
-Next.js App Router starter for the trading-journal assignment. The calendar supports validated JSON imports, exact P&L totals, local close-date grouping, and browser-local persistence. Day links are wired; the day page is not implemented yet.
+Next.js App Router starter for the trading-journal assignment. The calendar supports validated JSON imports, exact P&L totals, local close-date grouping, and browser-local persistence. Day pages show trades and summaries, with saved pre-market plans and session reviews.
 
 ## Run locally
 
@@ -30,13 +30,13 @@ Run `npm run build` to compile for production and `npm run start` to serve that 
 
 ## Storage and data handling
 
-Imported account metadata and completed trades are saved in IndexedDB through Dexie.js in the `tradelyzer-journal` database. Version 1 stores one active import as a single record; importing another file replaces that record atomically. Original decimal money strings are preserved, and totals use BigInt cents. Trades belong to their local close date because this is when completed P&L is realized, including overnight trades.
+Imported account metadata and completed trades are saved in IndexedDB through Dexie.js in the `tradelyzer-journal` database. Version 2 adds daily journals keyed by local date, while preserving version 1 imports. Version 4 stores screenshot blobs in a separate table indexed by journal date. Screenshot additions and deletions stay in the day draft until Save journal. The journal, selected tags, and screenshot changes are committed in one IndexedDB transaction; failed saves preserve the previous data and keep the draft available to retry. Reloading or leaving without saving discards screenshot changes. Screenshot blobs load separately from the journal and thumbnail decoding is lazy. Attach PNG, JPEG, WebP or GIF files up to 10 MB each, or paste an image outside text fields. The Paste image button requires clipboard access; keyboard paste also works. Stored originals use browser disk space and are lost if site data is cleared. Version 3 adds a shared tag library and migrates tags from existing journals. Custom tags are saved immediately and offered on every day; selecting a tag stays specific to the journal and is persisted with Save journal. One active import is stored as a single record; importing another file replaces that record atomically. Original decimal money strings are preserved, and totals use BigInt cents. Trades belong to their local close date because this is when completed P&L is realized, including overnight trades.
 
 The calendar restores saved data on reload. Imports report success only after the write completes; failed saves preserve the existing import and allow retry. Data stays in the same browser profile and origin, with no server upload or cross-device sync. Clearing site data, private-session cleanup, browser eviction, or storage limits can remove or prevent storage. Keep the source JSON as a backup. Large imports are read as one snapshot; indexed per-trade queries can be added if needed.
 
 ## Remaining scope
 
-Day journals, plan/review fields, loss-limit warnings, journal indicators, screenshot attachments, and default templates are not implemented yet. Their persistence will be added with those features through versioned Dexie migrations. Settings remains a placeholder.
+Default plan templates are not implemented yet. Day journals include bias, key levels, an exact-cent loss limit, plan/review text, custom mistake tags, and mood. Use Save journal to persist edits; navigation warns about unsaved changes. Saved entries and exceeded loss limits are indicated on the calendar. A warning appears only when net loss strictly exceeds the limit, not when equal. Journals belong to local dates and are shared across replacement trade imports; separate accounts and timezone changes are not isolated. Their persistence will be added with those features through versioned Dexie migrations. Settings remains a placeholder.
 
 ## Checks
 

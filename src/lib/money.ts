@@ -42,3 +42,19 @@ export function formatMoney(cents: bigint, signed = false): string {
 
   return `${sign}$${units}.${fraction}`;
 }
+
+export function largerCents(left: bigint, right: bigint): bigint {
+  if (right > left) {
+    return right;
+  }
+
+  return left;
+}
+
+export function smallerCents(left: bigint, right: bigint): bigint {
+  if (right < left) {
+    return right;
+  }
+
+  return left;
+}

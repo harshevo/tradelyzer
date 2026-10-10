@@ -2,8 +2,16 @@
 
 import { useId, useMemo, useState } from "react";
 import { DateTime } from "luxon";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  NotebookPen,
+  AlertTriangle,
+} from "lucide-react";
 import Link from "next/link";
+import { useLiveQuery } from "dexie-react-hooks";
+import { journalDatabase } from "@/lib/db/journal-database";
+import { exceedsLossLimit } from "@/features/journal/schemas/journal.schema";
 import { Button } from "@/components/ui/button";
 import {
   calendarWeeks,
@@ -15,7 +23,6 @@ import {
 } from "@/features/trades/schemas/trade-file.schema";
 import {
   formatWinRate,
-  lossClass,
   profitAndLossClass,
   tradeNoun,
 } from "@/features/trades/utils/trade-display";
@@ -27,6 +34,8 @@ const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
   const titleId = useId();
+  const journals = useLiveQuery(() => journalDatabase.journals.toArray());
+  const entries = new Map(journals?.map((entry) => [entry.date, entry]));
   const today = DateTime.now().setZone(timezone);
   const [month, setMonth] = useState(() => {
     const latest = data?.trades.reduce(
@@ -58,8 +67,8 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
 
   return (
     <section aria-labelledby={titleId} className="bg-transparent">
-      <div className="mb-11 flex items-center justify-between gap-12 @max-[1050px]:mb-9 @max-[1050px]:flex-col @max-[1050px]:items-stretch @max-[1050px]:gap-7">
-        <div className="min-w-0 flex-1 [&_h2]:text-2xl [&_h2]:leading-[1.3] [&_h2]:font-[550] [&_h2]:tracking-[-0.7px]">
+      <div className="mb-11 flex items-center justify-between gap-12 @max-[1050px]:mb-9 @max-[1050px]:flex-col @max-[1050px]:items-stretch @max-[1050px]:gap-5 @max-[640px]:mb-6">
+        <div className="min-w-0 flex-1 [&_h2]:text-2xl [&_h2]:leading-[1.3] [&_h2]:font-[550] [&_h2]:tracking-[-0.7px] @max-[640px]:[&_h2]:text-xl">
           <h2 id={titleId}>Trade calendar</h2>
           <span
             className="mt-2 block truncate text-[11px] leading-normal text-muted-foreground @max-[800px]:text-[10px]"
@@ -67,14 +76,15 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
           >
             {data?.account.name && <span>{data.account.name} · </span>}
             {timezone.replaceAll("_", " ")}
+            <span className="hidden @max-[640px]:inline"> · USD</span>
           </span>
         </div>
-        <dl className="grid w-[min(66%,680px)] shrink-0 grid-cols-4 gap-6 @max-[1050px]:w-full @max-[640px]:grid-cols-2 @max-[640px]:gap-x-7 @max-[640px]:gap-y-5 [&_dt]:mb-2 [&_dt]:text-[11px] [&_dt]:leading-4 [&_dt]:whitespace-nowrap [&_dt]:text-muted-foreground [&_dd]:text-2xl [&_dd]:leading-[30px] [&_dd]:font-medium [&_dd]:tracking-[-0.65px] [&_dd]:tabular-nums [&_dd]:[overflow-wrap:anywhere]">
+        <dl className="grid w-[min(66%,680px)] shrink-0 grid-cols-4 gap-6 @max-[1050px]:w-full @max-[640px]:grid-cols-[1.5fr_1fr_1fr_1fr] @max-[640px]:gap-2 @max-[640px]:[&_dt]:mb-1 @max-[640px]:[&_dt]:text-[9px] @max-[640px]:[&_dd]:text-[clamp(12px,3cqw,20px)] @max-[640px]:[&_dd]:leading-6 [&_dt]:mb-2 [&_dt]:text-[11px] [&_dt]:leading-4 [&_dt]:whitespace-nowrap [&_dt]:text-muted-foreground [&_dd]:text-2xl [&_dd]:leading-[30px] [&_dd]:font-medium [&_dd]:tracking-[-0.65px] [&_dd]:tabular-nums [&_dd]:[overflow-wrap:anywhere]">
           <div>
             <dt>
               Net P&L <span className="sr-only">in USD</span>
             </dt>
-            <dd className={lossClass(summary.net)}>
+            <dd className={profitAndLossClass(summary.net)}>
               {formatMoney(summary.net, true)}
             </dd>
           </div>
@@ -92,9 +102,9 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
           </div>
         </dl>
       </div>
-      <div className="min-w-0 rounded-3xl border border-border bg-card p-6 [corner-shape:squircle] @max-[640px]:rounded-[20px] @max-[640px]:px-3 @max-[640px]:py-4">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1 [&_h3]:mr-1 [&_h3]:text-base [&_h3]:font-[550]">
+      <div className="min-w-0 rounded-3xl border border-border bg-card p-6 [corner-shape:squircle] @max-[640px]:rounded-[20px] @max-[640px]:px-1 @max-[640px]:py-4">
+        <div className="mb-6 @max-[640px]:mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1 [&_h3]:mr-1 [&_h3]:text-base @max-[640px]:[&_h3]:text-sm [&_h3]:font-[550]">
             <h3 aria-live="polite">{month.toFormat("MMMM yyyy")}</h3>
             <Button
               variant="ghost"
@@ -123,7 +133,7 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] table-fixed border-separate border-spacing-[6px] [&_th]:px-[14px] [&_th]:pb-3 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-medium [&_th]:text-muted-foreground [&_th:last-child]:w-[12%] [&_td]:overflow-hidden [&_td]:rounded-[18px] [&_td]:border [&_td]:border-border [&_td]:align-top [&_td]:[corner-shape:squircle]">
+          <table className="w-full table-fixed border-separate border-spacing-[6px] [&_th]:px-[14px] [&_th]:pb-3 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-medium [&_th]:text-muted-foreground [&_th:last-child]:w-[12%] [&_td]:overflow-hidden [&_td]:rounded-[18px] [&_td]:border [&_td]:border-border [&_td]:align-top [&_td]:[corner-shape:squircle] @max-[1050px]:border-spacing-[3px] @max-[1050px]:[&_th]:px-1 @max-[1050px]:[&_td]:rounded-xl @max-[640px]:border-spacing-[2px] @max-[640px]:[&_th]:text-center @max-[640px]:[&_th]:text-[9px] @max-[640px]:[&_th]:px-0 @max-[640px]:[&_th]:pb-2 @max-[640px]:[&_th:last-child]:w-auto @max-[640px]:[&_td]:rounded-lg">
             <caption className="sr-only">
               {month.toFormat("MMMM yyyy")} closed trade results in USD
             </caption>
@@ -136,29 +146,35 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
                 ))}
                 <th
                   scope="col"
+                  className="@max-[640px]:hidden"
                   title="Includes every displayed day, including adjacent months"
                 >
                   Week total
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {weeks.map((week) => {
-                const weekSummary = summarizeTrades(
-                  week.flatMap((day) => groups.get(day.toISODate()!) ?? []),
-                );
-                let weekTotal = "—";
+            {weeks.map((week, weekIndex) => {
+              const weekSummary = summarizeTrades(
+                week.flatMap((day) => groups.get(day.toISODate()!) ?? []),
+              );
+              let weekTotal = "—";
 
-                if (weekSummary.count > 0) {
-                  weekTotal = formatMoney(weekSummary.net, true);
-                }
+              if (weekSummary.count > 0) {
+                weekTotal = formatMoney(weekSummary.net, true);
+              }
 
-                return (
-                  <tr key={week[0].toISODate()}>
+              return (
+                <tbody key={week[0].toISODate()}>
+                  <tr>
                     {week.map((day) => {
                       const date = day.toISODate()!;
                       const daySummary = summarizeTrades(
                         groups.get(date) ?? [],
+                      );
+                      const entry = entries.get(date);
+                      const overLimit = exceedsLossLimit(
+                        daySummary.net,
+                        entry?.maxLoss,
                       );
                       const outside = day.month !== month.month;
                       const isToday = date === today.toISODate();
@@ -177,6 +193,14 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
                         );
                       }
 
+                      if (entry) {
+                        labelParts.push("journal saved");
+                      }
+
+                      if (overLimit) {
+                        labelParts.push("daily loss limit exceeded");
+                      }
+
                       return (
                         <td
                           key={date}
@@ -185,12 +209,12 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
                           <Link
                             href={{ pathname: "/journal/day", query: { date } }}
                             prefetch={false}
-                            className="flex h-[116px] w-full cursor-pointer flex-col items-start rounded-[17px] px-4 py-[14px] text-left transition-colors duration-150 [corner-shape:squircle] hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                            className="flex h-[116px] w-full cursor-pointer flex-col items-start rounded-[17px] px-4 py-[14px] text-left transition-colors duration-150 [corner-shape:squircle] hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring @max-[1050px]:h-[96px] @max-[1050px]:px-2 @max-[1050px]:py-2 @max-[640px]:h-auto @max-[640px]:aspect-square @max-[640px]:relative @max-[640px]:items-center @max-[640px]:px-0.5 @max-[640px]:py-1 @max-[640px]:rounded-lg"
                             aria-label={labelParts.join(", ")}
                           >
                             <span
                               className={cn(
-                                "-mt-0.5 -ml-1 mb-[7px] grid size-[22px] place-items-center text-[11px]",
+                                "-mt-0.5 -ml-1 mb-[7px] grid size-[22px] place-items-center text-[11px] @max-[640px]:m-0 @max-[640px]:mb-0.5 @max-[640px]:size-3.5 @max-[640px]:text-[9px]",
                                 isToday &&
                                   "rounded-lg bg-foreground text-background [corner-shape:squircle]",
                                 !isToday && "text-muted-foreground",
@@ -200,24 +224,56 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
                               {day.day}
                             </span>
                             {daySummary.count > 0 && (
-                              <span className="flex flex-col gap-[5px] [&_strong]:text-sm [&_strong]:font-medium [&_strong]:whitespace-nowrap [&_strong]:tabular-nums [&>span]:text-[10px] [&>span]:text-muted-foreground">
+                              <span className="flex flex-col gap-[5px] [&_strong]:text-sm [&_strong]:font-medium [&_strong]:whitespace-nowrap [&_strong]:tabular-nums [&>span]:text-[10px] [&>span]:text-muted-foreground @max-[1050px]:[&_strong]:text-[11px] @max-[640px]:gap-0.5 @max-[640px]:leading-tight @max-[480px]:[&>span]:hidden @max-[640px]:[&_strong]:text-[clamp(9px,1.9cqw,11px)] @max-[640px]:[&>span]:text-[8px]">
                                 <strong
                                   className={profitAndLossClass(daySummary.net)}
                                 >
-                                  {formatMoney(daySummary.net, true)}
+                                  <span className="@max-[640px]:hidden">
+                                    {formatMoney(daySummary.net, true)}
+                                  </span>
+                                  <span
+                                    className="hidden @max-[640px]:inline"
+                                    title={formatMoney(daySummary.net, true)}
+                                  >
+                                    {formatMoney(daySummary.net, true).replace(
+                                      "$",
+                                      "",
+                                    )}
+                                  </span>
                                 </strong>
                                 <span>
                                   {daySummary.count}{" "}
-                                  {tradeNoun(daySummary.count)}
+                                  <span className="@max-[640px]:hidden">
+                                    {tradeNoun(daySummary.count)}
+                                  </span>
+                                  <span className="hidden @max-[640px]:inline">
+                                    tr.
+                                  </span>
                                 </span>{" "}
                               </span>
                             )}
+                            <span className="mt-auto flex items-center gap-2 @max-[640px]:absolute @max-[640px]:right-0.5 @max-[640px]:top-0.5 @max-[640px]:gap-0.5 @max-[640px]:[&_svg]:size-2">
+                              {entry && (
+                                <NotebookPen
+                                  size={13}
+                                  className="text-muted-foreground"
+                                  aria-label="Journal saved"
+                                />
+                              )}
+                              {overLimit && (
+                                <AlertTriangle
+                                  size={13}
+                                  className="text-loss"
+                                  aria-label="Daily loss limit exceeded"
+                                />
+                              )}
+                            </span>
                           </Link>
                         </td>
                       );
                     })}
-                    <td className="bg-muted px-4 pt-[43px] pb-[14px] [&_strong]:text-sm [&_strong]:font-medium [&_strong]:whitespace-nowrap [&_strong]:tabular-nums [&>span]:mt-[5px] [&>span]:block [&>span]:text-[10px] [&>span]:text-muted-foreground">
-                      <strong className={lossClass(weekSummary.net)}>
+                    <td className="@max-[640px]:hidden @max-[1050px]:px-2 @max-[1050px]:pt-9 @max-[1050px]:[&_strong]:text-[11px] bg-muted px-4 pt-[43px] pb-[14px] [&_strong]:text-sm [&_strong]:font-medium [&_strong]:whitespace-nowrap [&_strong]:tabular-nums [&>span]:mt-[5px] [&>span]:block [&>span]:text-[10px] [&>span]:text-muted-foreground">
+                      <strong className={profitAndLossClass(weekSummary.net)}>
                         {weekTotal}
                       </strong>
                       {weekSummary.count > 0 && (
@@ -225,9 +281,20 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
                       )}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
+                  <tr className="hidden @max-[640px]:table-row">
+                    <td
+                      colSpan={7}
+                      className="!border-0 !rounded-none px-1 pt-1 pb-3 text-right text-[9px] text-muted-foreground"
+                    >
+                      Week {weekIndex + 1} ·{" "}
+                      <span className={profitAndLossClass(weekSummary.net)}>
+                        {formatMoney(weekSummary.net, true)}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              );
+            })}
           </table>
         </div>
       </div>

@@ -1,0 +1,43 @@
+import { DateTime } from "luxon";
+import { z } from "zod";
+import { toCents } from "../../../lib/money";
+
+export const journalSchema = z.object({
+  date: z.string().refine(isJournalDate, "Choose a valid date"),
+  bias: z.enum(["neutral", "bullish", "bearish"]),
+  levels: z.string().max(10000),
+  maxLoss: z
+    .string()
+    .regex(
+      /^(?:\d{1,15}(?:\.\d{1,2})?)?$/,
+      "Use a positive dollar amount with at most two decimals",
+    ),
+  plan: z.string().max(10000),
+  wentWell: z.string().max(10000),
+  mistakes: z.string().max(10000),
+  tags: z.array(z.string().trim().min(1).max(60)).max(30),
+  mood: z.number().int().min(1).max(5).nullable(),
+});
+export type JournalEntry = z.infer<typeof journalSchema>;
+
+export function isJournalDate(date: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && DateTime.fromISO(date).isValid;
+}
+
+export function emptyJournal(date: string): JournalEntry {
+  return {
+    date,
+    bias: "neutral",
+    levels: "",
+    maxLoss: "",
+    plan: "",
+    wentWell: "",
+    mistakes: "",
+    tags: [],
+    mood: null,
+  };
+}
+
+export function exceedsLossLimit(net: bigint, maxLoss = "") {
+  return maxLoss !== "" && net < -toCents(maxLoss);
+}

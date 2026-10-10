@@ -48,3 +48,218 @@ describe("persistent trade imports", () => {
     expect(await db.loadTrades()).toEqual(fixture);
   });
 });
+
+it("upgrades version 1 without losing trades and persists separate day entries", async () => {
+  const { default: Dexie } = await import("dexie");
+  const { emptyJournal } = await import(
+    "../../features/journal/schemas/journal.schema"
+  );
+  const name = crypto.randomUUID();
+  const legacy = new Dexie(name);
+  legacy.version(1).stores({ imports: "id" });
+  await legacy.table("imports").put({ id: "active", data: fixture });
+  legacy.close();
+  const db = open(name);
+  const entry = {
+    ...emptyJournal("2026-09-08"),
+    plan: "Wait for support",
+    maxLoss: "100.01",
+    tags: ["FOMO", "My tag"],
+    mood: 4,
+  };
+  await db.saveJournal(entry);
+  await db.saveJournal(emptyJournal("2026-09-09"));
+  db.close();
+  const reopened = open(name);
+  expect(await reopened.loadTrades()).toEqual(fixture);
+  expect(await reopened.journals.get(entry.date)).toEqual(entry);
+  expect(await reopened.journals.count()).toBe(2);
+  await expect(
+    reopened.saveJournal({ ...entry, maxLoss: "-1" }),
+  ).rejects.toThrow();
+  vi.spyOn(reopened.journals, "put").mockRejectedValueOnce(
+    new DOMException("Storage full", "QuotaExceededError"),
+  );
+  await expect(
+    reopened.saveJournal({ ...entry, plan: "Changed" }),
+  ).rejects.toThrow("Storage full");
+  expect(await reopened.journals.get(entry.date)).toEqual(entry);
+});
+
+it("shares custom tags across days and reloads without selecting them on other days", async () => {
+  const { emptyJournal } = await import(
+    "../../features/journal/schemas/journal.schema"
+  );
+  const db = open();
+  expect(await db.addTag("  Late entry  ")).toBe("Late entry");
+  await db.addTag("Late entry");
+  await db.saveJournal({ ...emptyJournal("2026-09-08"), tags: ["Late entry"] });
+  await db.saveJournal(emptyJournal("2026-09-09"));
+  db.close();
+  const reopened = open(db.name);
+  expect(await reopened.tags.toArray()).toEqual([{ name: "Late entry" }]);
+  expect((await reopened.journals.get("2026-09-09"))?.tags).toEqual([]);
+  await expect(reopened.addTag(" ")).rejects.toThrow();
+  vi.spyOn(reopened.tags, "put").mockRejectedValueOnce(
+    new Error("Storage full"),
+  );
+  await expect(reopened.addTag("Failed tag")).rejects.toThrow("Storage full");
+  expect(await reopened.tags.count()).toBe(1);
+});
+
+it("migrates existing journal tags into the shared library without changing entries", async () => {
+  const { default: Dexie } = await import("dexie");
+  const { emptyJournal } = await import(
+    "../../features/journal/schemas/journal.schema"
+  );
+  const name = crypto.randomUUID();
+  const legacy = new Dexie(name);
+  legacy.version(2).stores({ imports: "id", journals: "date" });
+  const entry = { ...emptyJournal("2026-09-08"), tags: ["Late entry", "FOMO"] };
+  await legacy.table("journals").put(entry);
+  await legacy
+    .table("journals")
+    .put({ ...emptyJournal("2026-09-09"), tags: ["Late entry"] });
+  legacy.close();
+  const db = open(name);
+  expect(await db.tags.toArray()).toEqual([
+    { name: "FOMO" },
+    { name: "Late entry" },
+  ]);
+  expect(await db.journals.get(entry.date)).toEqual(entry);
+});
+
+it("stores original screenshot blobs per day, survives reopening and persists deletion", async () => {
+  const db = open();
+  const file = new File([new Uint8Array([1, 2, 3])], "chart.png", {
+    type: "image/png",
+  });
+  await db.addScreenshots("2026-09-08", [file, file]);
+  await db.addScreenshots("2026-09-09", [file]);
+  db.close();
+  const reopened = open(db.name);
+  const images = await reopened.screenshots
+    .where("date")
+    .equals("2026-09-08")
+    .toArray();
+  expect(images).toHaveLength(2);
+  expect(images[0].image.type).toBe("image/png");
+  expect(new Uint8Array(await images[0].image.arrayBuffer())).toEqual(
+    new Uint8Array([1, 2, 3]),
+  );
+  await reopened.screenshots.delete(images[0].id);
+  reopened.close();
+  const restored = open(db.name);
+  expect(
+    await restored.screenshots.where("date").equals("2026-09-08").count(),
+  ).toBe(1);
+  expect(
+    await restored.screenshots.where("date").equals("2026-09-09").count(),
+  ).toBe(1);
+});
+
+it("rejects invalid screenshot batches and preserves saved images after storage failure", async () => {
+  const db = open();
+  const image = new File(["image"], "chart.png", { type: "image/png" });
+  await db.addScreenshots("2026-09-08", [image]);
+  await expect(
+    db.addScreenshots("2026-09-08", [
+      image,
+      new File(["text"], "text.txt", { type: "text/plain" }),
+    ]),
+  ).rejects.toThrow("Choose PNG");
+  await expect(db.addScreenshots("2026-02-30", [image])).rejects.toThrow(
+    "valid journal date",
+  );
+  await expect(
+    db.addScreenshots("2026-09-08", [
+      new File([], "empty.png", { type: "image/png" }),
+    ]),
+  ).rejects.toThrow("10 MB");
+  await expect(
+    db.addScreenshots("2026-09-08", [
+      new File([new Uint8Array(10 * 1024 * 1024 + 1)], "large.png", {
+        type: "image/png",
+      }),
+    ]),
+  ).rejects.toThrow("10 MB");
+  vi.spyOn(db.screenshots, "bulkAdd").mockRejectedValueOnce(
+    new Error("Storage full"),
+  );
+  await expect(db.addScreenshots("2026-09-08", [image])).rejects.toThrow(
+    "Storage full",
+  );
+  expect(await db.screenshots.count()).toBe(1);
+});
+
+it("upgrades existing journals and tag libraries without losing them", async () => {
+  const { default: Dexie } = await import("dexie");
+  const { emptyJournal } = await import(
+    "../../features/journal/schemas/journal.schema"
+  );
+  const name = crypto.randomUUID();
+  const legacy = new Dexie(name);
+  legacy.version(3).stores({ imports: "id", journals: "date", tags: "name" });
+  const entry = emptyJournal("2026-09-08");
+  await legacy.table("journals").put(entry);
+  await legacy.table("tags").put({ name: "Late entry" });
+  legacy.close();
+  const db = open(name);
+  expect(await db.journals.get(entry.date)).toEqual(entry);
+  expect(await db.tags.toArray()).toEqual([{ name: "Late entry" }]);
+  expect(await db.screenshots.count()).toBe(0);
+});
+
+it("commits screenshot drafts only with the journal and rolls back failed saves", async () => {
+  const { emptyJournal } = await import(
+    "../../features/journal/schemas/journal.schema"
+  );
+  const db = open();
+  const entry = emptyJournal("2026-09-12");
+  const image = new Blob(["original"], { type: "image/png" });
+  const screenshot = {
+    id: crypto.randomUUID(),
+    date: entry.date,
+    name: "chart.png",
+    image,
+  };
+  expect(await db.screenshots.count()).toBe(0);
+  await db.saveJournal(entry, { added: [screenshot], removed: [] });
+  expect(await db.screenshots.count()).toBe(1);
+  const replacement = { ...screenshot, id: crypto.randomUUID() };
+  vi.spyOn(db.journals, "put").mockRejectedValueOnce(new Error("Storage full"));
+  await expect(
+    db.saveJournal(
+      { ...entry, plan: "Changed" },
+      { added: [replacement], removed: [screenshot.id] },
+    ),
+  ).rejects.toThrow("Storage full");
+  expect(await db.screenshots.get(screenshot.id)).toBeDefined();
+  expect(await db.screenshots.get(replacement.id)).toBeUndefined();
+  expect((await db.journals.get(entry.date))?.plan).toBe("");
+  await db.saveJournal(entry, { added: [], removed: [screenshot.id] });
+  expect(await db.screenshots.count()).toBe(0);
+});
+
+it("prevents attachment changes from modifying another day's screenshots", async () => {
+  const { emptyJournal } = await import(
+    "../../features/journal/schemas/journal.schema"
+  );
+  const db = open();
+  const entry = emptyJournal("2026-09-12");
+  const screenshot = {
+    id: crypto.randomUUID(),
+    date: "2026-09-13",
+    name: "chart.png",
+    image: new Blob(["image"], { type: "image/png" }),
+  };
+  await db.screenshots.add(screenshot);
+  await expect(
+    db.saveJournal(entry, { added: [], removed: [screenshot.id] }),
+  ).rejects.toThrow("another day");
+  await expect(
+    db.saveJournal(entry, { added: [screenshot], removed: [] }),
+  ).rejects.toThrow("another day");
+  expect(await db.screenshots.get(screenshot.id)).toBeDefined();
+  expect(await db.journals.count()).toBe(0);
+});
