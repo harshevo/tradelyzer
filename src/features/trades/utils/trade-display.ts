@@ -2,7 +2,7 @@ const ZERO_CENTS = BigInt(0);
 
 export function lossClass(cents: bigint): string {
   if (cents < ZERO_CENTS) {
-    return "negative";
+    return "text-loss";
   }
 
   return "";
@@ -10,11 +10,11 @@ export function lossClass(cents: bigint): string {
 
 export function profitAndLossClass(cents: bigint): string {
   if (cents < ZERO_CENTS) {
-    return "negative";
+    return "text-loss";
   }
 
   if (cents > ZERO_CENTS) {
-    return "positive";
+    return "text-profit";
   }
 
   return "";
