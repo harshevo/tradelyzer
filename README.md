@@ -1,90 +1,112 @@
-# Tradelyzer Daily Journal
+# Tradelyzer — Daily Trading Journal
 
-Next.js App Router starter for the trading-journal assignment. The calendar supports validated JSON imports, exact P&L totals, local close-date grouping, and browser-local persistence. Day pages show trades and summaries, with saved pre-market plans and session reviews.
+A daily journal for traders: a month calendar of results, and a page per day with the day's trades, a pre-market plan, a post-session review, screenshots and a reusable plan template.
 
-## Run locally
+Built with Next.js (App Router), React, TypeScript and Tailwind CSS.
+
+## Setup and running
+
+Requirements: Node.js 20.9 or newer, and npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000, choose **Import trades → File upload**, and select the `trades.json` supplied with the assignment. The calendar opens on the month of the most recent trade.
 
-## Included
-
-- Next.js App Router, React, TypeScript, ESLint, and Tailwind CSS.
-- shadcn/ui initialized with Tailwind v4, theme variables, Lucide icons, the `@/*` alias, and the starter Button primitive.
-- `@tanstack/react-table` for headless trade-table behavior.
-- `@chenglou/pretext` for text measurement and layout.
-- Dexie and dexie-react-hooks for browser IndexedDB access. IndexedDB itself is built into supported browsers; it is not an npm package to install separately.
-- Zod for runtime validation and Luxon for timezone-aware date operations.
-
-## State library
-
-Zustand is intentionally not installed. Keep persisted journal data in Dexie, URL state in route/search parameters, and small form drafts in React state. Add Zustand only if independent parts of the UI later need to coordinate substantial transient state.
-
-## Dependencies
-
-Run `npm run build` to compile for production and `npm run start` to serve that build. Use `npx shadcn@latest add <component>` to add shadcn primitives when the UI needs them; the shadcn CLI is not a runtime dependency.
-
-## Storage and data handling
-
-Imported account metadata and completed trades are saved in IndexedDB through Dexie.js in the `tradelyzer-journal` database. Version 2 adds daily journals keyed by local date, while preserving version 1 imports. Version 4 stores screenshot blobs in a separate table indexed by journal date. Screenshot additions and deletions stay in the day draft until Save journal. The journal, selected tags, and screenshot changes are committed in one IndexedDB transaction; failed saves preserve the previous data and keep the draft available to retry. Reloading or leaving without saving discards screenshot changes. Screenshot blobs load separately from the journal and thumbnail decoding is lazy. Attach PNG, JPEG, WebP or GIF files up to 10 MB each, or paste an image outside text fields. The Paste image button requires clipboard access; keyboard paste also works. Stored originals use browser disk space and are lost if site data is cleared. Version 3 adds a shared tag library and migrates tags from existing journals. Custom tags are saved immediately and offered on every day; selecting a tag stays specific to the journal and is persisted with Save journal. One active import is stored as a single record; importing another file replaces that record atomically. Original decimal money strings are preserved, and totals use BigInt cents. Trades belong to their local close date because this is when completed P&L is realized, including overnight trades.
-
-The calendar restores saved data on reload. Imports report success only after the write completes; failed saves preserve the existing import and allow retry. Data stays in the same browser profile and origin, with no server upload or cross-device sync. Clearing site data, private-session cleanup, browser eviction, or storage limits can remove or prevent storage. Keep the source JSON as a backup. Large imports are read as one snapshot; indexed per-trade queries can be added if needed.
-
-## Default plan template
-
-Fill the pre-market fields and choose **Save as default** to store market bias, key levels, max daily loss, and plan text. Version 5 adds a separate IndexedDB table holding one default template. Days without saved journals start with these values; reviews, tags, mood, and screenshots are never copied. Prefilled values are a draft until **Save journal**. Saving or replacing the default does not save the current journal, overwrite existing journals, or change an already-open draft. To update the template, edit the four fields and save it again. Save blank fields with neutral bias to reset the default. Templates share the same browser storage limits as journals.
-
-## Remaining scope
-
-Day journals include bias, key levels, an exact-cent loss limit, plan/review text, custom mistake tags, and mood. Use Save journal to persist edits; navigation warns about unsaved changes. Saved entries and exceeded loss limits are indicated on the calendar. A warning appears only when net loss strictly exceeds the limit, not when equal. Journals and the default template are shared across replacement trade imports; separate accounts and timezone changes are not isolated. Account separation and cross-device sync would be next steps. Settings remains a placeholder.
-
-## Checks
+Other commands:
 
 ```bash
-npm run lint
-npm test
-npm run build
+npm test         # unit and storage tests
+npm run lint     # ESLint
+npm run build    # production build
+npm run start    # serve the production build
 ```
 
-Storage tests use fake-indexeddb to verify reopen/restore, replacement, exact round-trips, and failed-import preservation.
+## What it does
 
-## Reusable color palette
+- **Month calendar.** Each day shows net P&L (green for profit, red for loss), the number of trades, and an icon when a journal entry exists. A warning icon appears when the day's loss is bigger than the planned max loss. Every day is clickable, including days without trades. Each week row ends with a weekly total.
+- **Day page.** The day's trades (symbol, side, volume, open and close time, net P&L) with a clear "No stop loss" marker, and a summary: net P&L, win rate, number of trades, largest win and largest loss.
+- **Pre-market plan.** Market bias, key levels, max loss for the day, and a plan.
+- **Post-session review.** What went well, mistakes, mistake tags (FOMO, Moved stop, Overtraded, Revenge trade, plus your own), and mood from 1 to 5.
+- **Screenshots.** Attach chart images with the file picker or by pasting from the clipboard. Thumbnails, a large preview and delete.
+- **Template.** Save the plan fields as a default template that pre-fills the plan on new days.
 
-Color tokens live in `src/app/globals.css` and are exposed as Tailwind utilities through `@theme inline`. Component styles use semantic utilities instead of literal colors. The 60–30–10 rule describes the visual hierarchy, not a strict pixel count.
+## Storage choice and trade-offs
 
-| Role | Token / Tailwind utility | Light color | Usage |
-| --- | --- | --- | --- |
-| 60% dominant | `bg-background` | `#F8FAFC` | App canvas |
-| 60% dominant | `bg-card` | `#FFFFFF` | Calendar, day cells, form surfaces |
-| Primary text | `text-foreground` | `#1E293B` | Headings and readable body text |
-| 30% supporting | `bg-sidebar` | `#EEF2F6` | Sidebar and mobile header |
-| 30% supporting | `bg-muted` / `bg-secondary` | `#F1F5F9` / `#E2E8F0` | Quiet containers and neutral hover states |
-| Secondary text | `text-muted-foreground` | `#64748B` | Labels, metadata and supporting text |
-| Borders | `border-border` / `border-border-strong` | `#E2E8F0` / `#CBD5E1` | Dividers, outlines, file drop zone |
-| 10% brand accent | `bg-primary` / `text-primary` | `#2563EB` | Primary CTA and interactive links |
-| Brand hover | `hover:bg-primary-hover` | `#1D4ED8` | Primary button hover |
-| Active navigation | `bg-sidebar-accent` / `text-sidebar-accent-foreground` | `#DBEAFE` / `#1D4ED8` | Current navigation item |
-| Keyboard focus | `ring-ring` / `outline-ring` | `#2563EB` | Focus indicators |
-| Profit | `text-profit` | `#18794E` | Positive P&L |
-| Loss/error | `text-loss` / `text-destructive` | `#B42318` | Negative P&L and errors |
-| Error surface | `bg-danger-surface` / `border-danger-border` | `#FFF1F2` / `#FECDD3` | Error messages |
+Everything is stored in the browser with **IndexedDB**, through Dexie.
 
-Reserve saturated blue for primary actions and active/focused interactions. Keep the logo and date marker neutral. Financial status colors express profit/loss independently of the brand. Use the shared Button component for CTA styling. Equivalent dark tokens are defined for future theme use.
+Why IndexedDB over local storage:
 
-## DigitalOcean deployment through Across
+- **Images.** Screenshots are stored as binary blobs. Local storage only holds strings, so images would need base64 encoding and would hit its small size limit after a few charts.
+- **Complex objects.** Journals, trades and templates are stored as structured records without manual serialising.
+- **Indexing.** Screenshots are indexed by day and journals are keyed by date, so a day page reads only what it needs.
+- **Transactions.** A journal, its tags and its screenshot changes are saved in one transaction, so a failed save leaves the previous entry intact.
 
-`across.json` selects a local build and deploys `.next/standalone` to
-`root@178.128.144.213`, served by Nginx with Node listening on loopback port 4100.
-Run Deploy in Across after loading this manifest. `npm run build:deploy` builds
-on the local machine, copies static/public assets, and packages pinned Linux x64
-Sharp libraries for this Ubuntu VPS. The VPS runs the finished application without
-installing project dependencies or compiling Next.js. It needs Node 20.9+; the
-tested runtime is Node 24.14.1.
+Why not PostgreSQL or another server database:
 
-To build on the VPS instead, select VPS and Save, set Install to `npm ci`, Build to
-`npm run build`, and Start to `HOSTNAME=127.0.0.1 npm start`, then Save again.
-The Linux packaging script is specific to the local-to-Ubuntu-x64 deployment.
+- It adds a server, a schema, migrations, hosting and authentication, which is extra complexity and resource use for a project of this size.
+- The storage code sits behind one module (`src/lib/db/journal-database.ts`), so it can be replaced by a server database later.
+
+Limits of this choice:
+
+- Data lives in one browser profile on one device. There is no sync between devices and no account.
+- Clearing site data, private browsing, or the browser evicting storage removes everything.
+- Storage is limited by the browser's quota. Screenshots are kept at original size, up to 10 MB each.
+- There is no export or backup, so keep the source `trades.json`.
+
+## Decisions about the data
+
+- **Money stays exact.** Money values arrive as strings and are converted to whole cents as `BigInt`. All totals are added in cents and formatted only for display, so there is no floating-point drift.
+- **Days use the local time zone.** Times in the file are UTC. They are shown and grouped in the browser's local time zone.
+- **A trade belongs to the day it closes.** One trade opens before UTC midnight and closes after it. It is counted on its local close date, because that is when its profit or loss is realised and when it affects the day's result and loss limit.
+- **Weeks run Monday to Sunday.** The weekly total covers every day shown in that row, including days from the neighbouring month.
+- **The loss warning is strict.** It appears only when the net loss is bigger than the max loss, not when they are equal.
+
+## Assumptions
+
+- One account at a time. Importing a new file replaces the saved trades; journal entries, screenshots and the template are kept.
+- Journal entries are keyed by local calendar date. Changing the device time zone can move a trade to a different day.
+- A journal entry is saved with the **Save journal** button, not automatically. Leaving with unsaved changes asks for confirmation.
+- The template copies only the plan fields. Reviews, tags, mood and screenshots are never copied to a new day.
+- Each day allows up to 10 mistake tags. Custom tags are shared across days.
+
+## Tests
+
+`npm test` runs 70 tests covering the logic that matters most:
+
+- money parsing, exact totals and formatting;
+- calendar weeks and local-day grouping, including midnight and daylight-saving changes;
+- trade file validation;
+- journal rules, the loss limit and the plan template;
+- IndexedDB storage: reload, replacement, schema upgrades and failed saves.
+
+## Beyond the brief
+
+The import dialog also has an **Exchange** tab that fetches trade history from Binance, Bybit or Coinbase and converts fills into completed trades. The assignment does not ask for this; the supplied file already contains finished trades with their net P&L.
+
+I chose exchange APIs over manual CSV exports for ease of use. With a CSV, the trader has to find the export page on each exchange, download a file, and upload it again every time they want fresh data, and every exchange uses a different file format. With a read-only API key they connect once, pick a date range, and the history arrives in one step. The JSON file upload stays available for traders who prefer not to share a key.
+
+## What I would do next
+
+- **Trade analysis.** Use a decision model to analyse trades and find patterns, for example which setups, sessions or mistake tags go with losing days.
+- **More charts.** An equity curve, P&L by symbol and by day of week, and win rate over time.
+- **Trade replay.** Step through a trade on its price chart to review the entry and exit.
+- **News.** A news endpoint so each day shows the market events that happened around the trades.
+- **Server storage.** Move to PostgreSQL with accounts, so journals sync across devices.
+
+## Project structure
+
+```
+src/
+  app/            routes: calendar (/), day page (/journal/day), API route
+  components/     shared UI and layout
+  features/
+    calendar/     month calendar
+    journal/      day page, screenshots, journal schema
+    imports/      file and exchange import
+    trades/       trade file schema and summaries
+  lib/            IndexedDB database, money helpers, ids
+tests/            unit and storage tests
+```

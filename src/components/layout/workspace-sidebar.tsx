@@ -36,7 +36,7 @@ export function WorkspaceSidebar() {
           href="/"
           aria-label="Tradelyzer home"
           title="Tradelyzer"
-          className="flex items-center gap-2.5 rounded-xl pl-[5px] text-[23px] font-[650] tracking-[-0.6px] text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-[800px]:pl-0 max-[800px]:text-[19px]"
+          className="flex items-center gap-2.5 rounded-xl pl-[5px] text-[23px] font-[650] tracking-[-0.6px] text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-[800px]:pl-0 max-[800px]:text-[19px]"
         >
           <span
             aria-hidden="true"
@@ -65,7 +65,7 @@ export function WorkspaceSidebar() {
           <span className={navigationLabel}>Calendar</span>
         </Link>
       </nav>
-      <div className="shrink-0 pt-4 max-[800px]:hidden">
+      <div className="flex shrink-0 justify-end pt-4 max-[800px]:hidden">
         <button
           type="button"
           className={`${navigationItem} shrink-0 cursor-pointer hover:bg-secondary hover:text-foreground`}

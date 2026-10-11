@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { Tabs } from "@base-ui/react/tabs";
 import { DateTime } from "luxon";
@@ -38,6 +44,7 @@ import { formatMoney, toCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 import type { Screenshot } from "@/features/journal/utils/screenshots";
+import { DayJournalSkeleton } from "./day-journal-skeleton";
 import { JournalScreenshots } from "./journal-screenshots";
 
 const inputClass =
@@ -46,10 +53,30 @@ const labelClass =
   "flex flex-col gap-1.5 text-xs font-medium text-muted-foreground max-[640px]:text-[10px]";
 const defaultTags = ["FOMO", "Moved stop", "Overtraded", "Revenge trade"];
 
-const dayNavigation = [
-  { offset: -1, label: "Previous day", Icon: ChevronLeft },
-  { offset: 1, label: "Next day", Icon: ChevronRight },
-];
+function DayLink({
+  day,
+  offset,
+  label,
+  children,
+}: {
+  day: DateTime;
+  offset: number;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={{
+        pathname: "/journal/day",
+        query: { date: day.plus({ days: offset }).toISODate() },
+      }}
+      aria-label={label}
+      className="grid size-8 shrink-0 place-items-center rounded-lg hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      {children}
+    </Link>
+  );
+}
 
 function toggleVariant(
   isSelected: boolean,
@@ -129,11 +156,7 @@ export function DayJournal({ date }: { date: string }) {
       );
     }
 
-    return (
-      <p role="status" className="text-sm text-muted-foreground">
-        Loading journal…
-      </p>
-    );
+    return <DayJournalSkeleton />;
   }
 
   return (
@@ -185,6 +208,7 @@ function JournalEditor({
   });
   const [customTag, setCustomTag] = useState("");
   const [addingTag, setAddingTag] = useState(false);
+  const [activeTab, setActiveTab] = useState("plan");
   const attachmentsChanged = useCallback((draft: Screenshot[]) => {
     setImages(draft);
     setStatus("");
@@ -378,30 +402,23 @@ function JournalEditor({
           <ArrowLeft size={15} /> Calendar
         </Link>
         <div className="min-w-0 text-center">
-          <h1 className="text-2xl font-medium leading-snug tracking-tight max-[640px]:text-lg">
-            {day.toFormat("cccc, d MMMM yyyy")}
-          </h1>
+          <nav
+            aria-label="Journal date"
+            className="flex items-center justify-center gap-2"
+          >
+            <DayLink day={day} offset={-1} label="Previous day">
+              <ChevronLeft size={18} />
+            </DayLink>
+            <h1 className="min-w-0 text-2xl font-medium leading-snug tracking-tight max-[640px]:text-lg">
+              {day.toFormat("cccc, d MMMM yyyy")}
+            </h1>
+            <DayLink day={day} offset={1} label="Next day">
+              <ChevronRight size={18} />
+            </DayLink>
+          </nav>
           <p className="mt-1.5 text-xs text-muted-foreground max-[640px]:text-[9px]">
             {zone.replaceAll("_", " ")}
           </p>
-          <nav
-            aria-label="Journal date"
-            className="mt-2 flex justify-center gap-1"
-          >
-            {dayNavigation.map(({ offset, label, Icon }) => (
-              <Link
-                key={offset}
-                href={{
-                  pathname: "/journal/day",
-                  query: { date: day.plus({ days: offset }).toISODate() },
-                }}
-                aria-label={label}
-                className="grid size-8 place-items-center rounded-lg hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                <Icon size={18} />
-              </Link>
-            ))}
-          </nav>
         </div>
       </header>
       {trades.length === 0 && (
@@ -552,7 +569,10 @@ function JournalEditor({
           disabled={saving || addingTag || savingTemplate}
           className="min-w-0 disabled:opacity-70"
         >
-          <Tabs.Root defaultValue="plan">
+          <Tabs.Root
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(String(value))}
+          >
             <Tabs.List
               aria-label="Journal sections"
               className="mx-auto mb-5 grid max-w-[420px] grid-cols-3 gap-1 rounded-xl bg-muted p-1"
@@ -636,27 +656,6 @@ function JournalEditor({
                   />
                 </label>
               </section>
-              <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-3">
-                {templateStatus && (
-                  <span
-                    role="status"
-                    className="text-[11px] text-muted-foreground"
-                  >
-                    {templateStatus}
-                  </span>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 px-4 text-xs"
-                  title="Use this plan for new days. Existing journals stay unchanged."
-                  onClick={() => void saveTemplate()}
-                >
-                  {savingTemplate && "Saving…"}
-                  {!savingTemplate && "Save as default template"}
-                </Button>
-              </div>
             </Tabs.Panel>
             <Tabs.Panel
               value="review"
@@ -802,8 +801,8 @@ function JournalEditor({
             </Tabs.Panel>
           </Tabs.Root>
         </fieldset>
-        <div className="mt-3 flex flex-col items-center justify-center gap-1.5 border-t border-border bg-background pt-3 pb-2 text-center max-[800px]:fixed max-[800px]:inset-x-0 max-[800px]:bottom-0 max-[800px]:z-20 max-[800px]:mt-0 max-[800px]:px-4 max-[800px]:pb-[max(12px,env(safe-area-inset-bottom))] max-[800px]:shadow-[0_-4px_16px_rgb(0_0_0/0.04)]">
-          <div className="text-xs text-muted-foreground">
+        <div className="mt-3 flex flex-wrap items-center justify-start gap-3 bg-background pt-3 pb-2 text-left max-[800px]:fixed max-[800px]:inset-x-0 max-[800px]:bottom-0 max-[800px]:z-20 max-[800px]:mt-0 max-[800px]:px-4 max-[800px]:pb-[max(12px,env(safe-area-inset-bottom))] max-[800px]:shadow-[0_-4px_16px_rgb(0_0_0/0.04)]">
+          <div className="order-last text-xs text-muted-foreground">
             <p role="status"> {saveStatus}</p>
             {error && (
               <p role="alert" className="mt-2 text-loss">
@@ -827,6 +826,30 @@ function JournalEditor({
             {saving && "Saving…"}
             {!saving && "Save journal"}
           </Button>
+          {activeTab === "plan" && (
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              {templateStatus && (
+                <span
+                  role="status"
+                  className="text-[11px] text-muted-foreground"
+                >
+                  {templateStatus}
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 px-4 text-xs"
+                disabled={saving || addingTag || savingTemplate}
+                title="Use this plan for new days. Existing journals stay unchanged."
+                onClick={() => void saveTemplate()}
+              >
+                {savingTemplate && "Saving…"}
+                {!savingTemplate && "Save as default template"}
+              </Button>
+            </div>
+          )}
         </div>
       </form>
     </>

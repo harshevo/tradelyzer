@@ -87,12 +87,12 @@ export function CalendarDashboard() {
     <div className="flex min-h-dvh bg-background max-[800px]:flex-col">
       <WorkspaceSidebar />
       <main className="@container min-h-screen min-w-0 flex-1 bg-background font-sans text-foreground [color-scheme:light]">
-        <header className="mx-auto flex h-24 max-w-[1400px] items-center justify-end px-16 @max-[800px]:h-18 @max-[800px]:px-4">
+        <header className="mx-auto flex h-16 max-w-[1400px] items-center justify-end px-10 @max-[800px]:h-18 @max-[800px]:px-4">
           <ExchangeImport
             onImport={(next) => journalDatabase.saveTrades(next)}
           />
         </header>
-        <div className="mx-auto mt-10 max-w-[1400px] px-16 pb-16 @max-[800px]:mt-3 @max-[800px]:px-4 @max-[800px]:pb-0">
+        <div className="mx-auto mt-4 max-w-[1400px] px-10 pb-4 @max-[800px]:mt-3 @max-[800px]:px-4 @max-[800px]:pb-0">
           {" "}
           {renderCalendar()}
         </div>

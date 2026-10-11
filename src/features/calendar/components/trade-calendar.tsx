@@ -71,11 +71,11 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
 
   return (
     <section aria-labelledby={titleId} className="bg-transparent">
-      <div className="mb-7 flex items-center justify-between gap-6 @max-[1050px]:mb-6 @max-[1050px]:flex-col @max-[1050px]:items-stretch @max-[1050px]:gap-3 @max-[640px]:mb-4">
+      <div className="mb-5 flex items-center justify-between gap-6 @max-[1050px]:mb-6 @max-[1050px]:flex-col @max-[1050px]:items-stretch @max-[1050px]:gap-3 @max-[640px]:mb-4">
         <div className="min-w-0 flex-1 [&_h2]:text-2xl [&_h2]:leading-[1.3] [&_h2]:font-[550] [&_h2]:tracking-[-0.7px] @max-[640px]:[&_h2]:text-xl">
           <h2 id={titleId}>Trade calendar</h2>
           <span
-            className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[11px] leading-normal text-muted-foreground @max-[800px]:text-[10px]"
+            className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs leading-normal text-muted-foreground @max-[800px]:text-xs"
             title="Trades are grouped by their close date in this timezone"
           >
             {data?.account.name && (
@@ -87,13 +87,13 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
             <span>{timezone.replaceAll("_", " ")}</span>
             <span
               aria-label={`Account currency: ${currency}`}
-              className="inline-flex items-center rounded-md border border-primary/15 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary"
+              className="inline-flex items-center rounded-md border border-primary/15 bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-primary"
             >
               {currency}
             </span>
           </span>
         </div>
-        <dl className="grid w-[min(60%,540px)] max-w-[540px] shrink-0 grid-cols-4 gap-4 @max-[1050px]:w-full @max-[1050px]:self-end @max-[640px]:grid-cols-[1.5fr_1fr_1fr_1fr] @max-[640px]:gap-2 @max-[640px]:[&_dt]:mb-1 @max-[640px]:[&_dt]:text-[9px] @max-[640px]:[&_dd]:text-[clamp(12px,3cqw,20px)] @max-[640px]:[&_dd]:leading-6 [&_dt]:mb-1 [&_dt]:text-[11px] [&_dt]:leading-4 [&_dt]:whitespace-nowrap [&_dt]:text-muted-foreground [&_dd]:text-2xl [&_dd]:leading-7 [&_dd]:font-medium [&_dd]:tracking-[-0.65px] [&_dd]:tabular-nums [&_dd]:[overflow-wrap:anywhere]">
+        <dl className="grid w-[min(60%,540px)] max-w-[540px] shrink-0 grid-cols-4 gap-4 @max-[1050px]:w-full @max-[1050px]:self-end @max-[640px]:grid-cols-[1.5fr_1fr_1fr_1fr] @max-[640px]:gap-2 @max-[640px]:[&_dt]:mb-1 @max-[640px]:[&_dt]:text-[9px] @max-[640px]:[&_dd]:text-[clamp(12px,3cqw,20px)] @max-[640px]:[&_dd]:leading-6 [&_dt]:mb-1 [&_dt]:text-xs [&_dt]:leading-4 [&_dt]:whitespace-nowrap [&_dt]:text-muted-foreground [&_dd]:text-2xl [&_dd]:leading-7 [&_dd]:font-medium [&_dd]:tracking-[-0.65px] [&_dd]:tabular-nums [&_dd]:[overflow-wrap:anywhere]">
           <div>
             <dt>
               Net P&L <span className="sr-only">in {currency}</span>
@@ -116,10 +116,9 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
           </div>
         </dl>
       </div>
-      <div className="min-w-0 rounded-3xl border border-border bg-card p-6 [corner-shape:squircle] @max-[640px]:rounded-[20px] @max-[640px]:px-1 @max-[640px]:py-4">
+      <div className="min-w-0 rounded-3xl border border-border bg-card p-4 [corner-shape:squircle] @max-[640px]:rounded-[20px] @max-[640px]:px-1 @max-[640px]:py-4">
         <div className="mb-6 @max-[640px]:mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1 [&_h3]:mr-1 [&_h3]:text-base @max-[640px]:[&_h3]:text-sm [&_h3]:font-[550]">
-            <h3 aria-live="polite">{month.toFormat("MMMM yyyy")}</h3>
+          <div className="flex items-center gap-1 [&_h3]:text-base @max-[640px]:[&_h3]:text-sm [&_h3]:font-[550]">
             <Button
               variant="ghost"
               size="icon"
@@ -128,6 +127,12 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
             >
               <ChevronLeft />
             </Button>
+            <h3
+              aria-live="polite"
+              className="min-w-36 text-center @max-[640px]:min-w-28"
+            >
+              {month.toFormat("MMMM yyyy")}
+            </h3>
             <Button
               variant="ghost"
               size="icon"
@@ -137,7 +142,7 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
               <ChevronRight />
             </Button>
           </div>
-          <div className="flex items-center gap-5 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-5 text-xs text-muted-foreground">
             <Button
               variant="outline"
               onClick={() => setMonth(today.startOf("month"))}
@@ -147,7 +152,7 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full table-fixed border-collapse [&_th]:px-[14px] [&_th]:pb-3 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-medium [&_th]:text-muted-foreground [&_th:last-child]:w-[12%] [&_td]:overflow-hidden [&_td]:border [&_td]:border-border [&_td]:align-top @max-[1050px]:[&_th]:px-1 @max-[640px]:[&_th]:text-center @max-[640px]:[&_th]:text-[9px] @max-[640px]:[&_th]:px-0 @max-[640px]:[&_th]:pb-2 @max-[640px]:[&_th:last-child]:w-[16%]">
+          <table className="w-full table-fixed border-collapse [&_th]:px-[14px] [&_th]:pb-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground [&_th:last-child]:w-[12%] [&_td]:overflow-hidden [&_td]:border [&_td]:border-border [&_td]:align-top @max-[1050px]:[&_th]:px-1 @max-[640px]:[&_th]:text-center @max-[640px]:[&_th]:text-[9px] @max-[640px]:[&_th]:px-0 @max-[640px]:[&_th]:pb-2 @max-[640px]:[&_th:last-child]:w-[16%]">
             <caption className="sr-only">
               {month.toFormat("MMMM yyyy")} closed trade results in {currency}
             </caption>
@@ -225,12 +230,12 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
                           <Link
                             href={{ pathname: "/journal/day", query: { date } }}
                             prefetch={false}
-                            className="flex aspect-square w-full cursor-pointer flex-col items-start px-4 py-[14px] text-left transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring @max-[1050px]:px-2 @max-[1050px]:py-2 @max-[640px]:h-[76px] @max-[640px]:aspect-auto @max-[640px]:items-center @max-[640px]:px-0.5 @max-[640px]:py-1.5"
+                            className="flex h-28 w-full cursor-pointer flex-col items-start px-4 py-3 text-left transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring @max-[1050px]:px-2 @max-[1050px]:py-2 @max-[640px]:h-[76px] @max-[640px]:aspect-auto @max-[640px]:items-center @max-[640px]:px-0.5 @max-[640px]:py-1.5"
                             aria-label={labelParts.join(", ")}
                           >
                             <span
                               className={cn(
-                                "-mt-0.5 -ml-1 mb-[7px] grid size-[22px] place-items-center text-[11px] @max-[640px]:m-0 @max-[640px]:mb-0.5 @max-[640px]:size-4 @max-[640px]:text-[9px]",
+                                "-mt-0.5 -ml-1 mb-[7px] grid size-[22px] place-items-center text-xs @max-[640px]:m-0 @max-[640px]:mb-0.5 @max-[640px]:size-4 @max-[640px]:text-[9px]",
                                 isToday &&
                                   "rounded-lg bg-foreground text-background [corner-shape:squircle]",
                                 !isToday && "text-muted-foreground",
@@ -240,7 +245,7 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
                               {day.day}
                             </span>
                             {daySummary.count > 0 && (
-                              <span className="flex max-w-full min-w-0 flex-col gap-[5px] [&_strong]:text-sm [&_strong]:font-medium [&_strong]:whitespace-nowrap [&_strong]:tabular-nums [&>span]:text-[10px] [&>span]:text-muted-foreground @max-[1050px]:[&_strong]:text-[11px] @max-[640px]:gap-0.5 @max-[640px]:leading-tight @max-[480px]:[&>span]:hidden @max-[640px]:[&_strong]:text-[9px] @max-[400px]:[&_strong]:text-[8px] @max-[640px]:[&_strong]:leading-4 @max-[640px]:[&_strong]:truncate @max-[640px]:[&>span]:text-[8px]">
+                              <span className="flex max-w-full min-w-0 flex-col gap-[5px] [&_strong]:text-sm [&_strong]:font-medium [&_strong]:whitespace-nowrap [&_strong]:tabular-nums [&>span]:text-xs [&>span]:text-muted-foreground @max-[1050px]:[&_strong]:text-xs @max-[640px]:gap-0.5 @max-[640px]:leading-tight @max-[480px]:[&>span]:hidden @max-[640px]:[&_strong]:text-[9px] @max-[400px]:[&_strong]:text-[8px] @max-[640px]:[&_strong]:leading-4 @max-[640px]:[&_strong]:truncate @max-[640px]:[&>span]:text-[8px]">
                                 <strong
                                   className={profitAndLossClass(daySummary.net)}
                                 >
@@ -285,7 +290,7 @@ export function TradeCalendar({ data, timezone = "UTC" }: TradeCalendarProps) {
                         </td>
                       );
                     })}
-                    <td className="@max-[640px]:px-0.5 @max-[640px]:pt-6 @max-[640px]:pb-1.5 @max-[640px]:text-center @max-[640px]:[&_strong]:text-[8px] @max-[640px]:[&>span]:text-[8px] @max-[1050px]:px-2 @max-[1050px]:pt-9 @max-[1050px]:[&_strong]:text-[11px] bg-muted px-4 pt-[43px] pb-[14px] [&_strong]:text-sm [&_strong]:font-medium [&_strong]:whitespace-nowrap [&_strong]:tabular-nums [&>span]:mt-[5px] [&>span]:block [&>span]:text-[10px] [&>span]:text-muted-foreground">
+                    <td className="@max-[640px]:px-0.5 @max-[640px]:pt-6 @max-[640px]:pb-1.5 @max-[640px]:text-center @max-[640px]:[&_strong]:text-[8px] @max-[640px]:[&>span]:text-[8px] @max-[1050px]:px-2 @max-[1050px]:pt-9 @max-[1050px]:[&_strong]:text-xs bg-muted px-4 pt-3 pb-2 [&_strong]:text-sm [&_strong]:font-medium [&_strong]:whitespace-nowrap [&_strong]:tabular-nums [&>span]:mt-[5px] [&>span]:block [&>span]:text-xs [&>span]:text-muted-foreground">
                       <strong className={profitAndLossClass(weekSummary.net)}>
                         <span className="@max-[640px]:hidden">{weekTotal}</span>
                         <span
