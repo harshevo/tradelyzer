@@ -7,7 +7,7 @@
   "excludes": [],
   "health_path": "/",
   "health_timeout_seconds": 60,
-  "install_command": "",
+  "install_command": "npm ci",
   "keep_releases": 3,
   "name": "tradelyzer",
   "nginx": {
@@ -23,7 +23,7 @@
     "upstreams": []
   },
   "port": 4100,
-  "project_root": "/Users/harshevo/Work/tradingjournal/frontend",
+  "project_root": ".",
   "start_command": "HOSTNAME=127.0.0.1 node server.js",
   "type": "node",
   "version": 1
