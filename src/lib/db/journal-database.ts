@@ -1,17 +1,20 @@
+import { createId } from "@/lib/id";
 import Dexie, { type Table } from "dexie";
 import {
   validateTradeFile,
   type TradeFile,
-} from "../../features/trades/schemas/trade-file.schema";
+} from "@/features/trades/schemas/trade-file.schema";
 import {
   journalSchema,
+  planTemplateSchema,
   type JournalEntry,
-} from "../../features/journal/schemas/journal.schema";
+  type PlanTemplate,
+} from "@/features/journal/schemas/journal.schema";
 
 import {
   validateScreenshot,
   type Screenshot,
-} from "../../features/journal/utils/screenshots";
+} from "@/features/journal/utils/screenshots";
 
 type SavedImport = { id: "active"; data: TradeFile };
 
@@ -20,6 +23,7 @@ export class JournalDatabase extends Dexie {
   journals!: Table<JournalEntry, string>;
   tags!: Table<{ name: string }, string>;
   screenshots!: Table<Screenshot, string>;
+  templates!: Table<PlanTemplate & { id: "default" }, string>;
 
   constructor(name = "tradelyzer-journal") {
     super(name);
@@ -37,13 +41,21 @@ export class JournalDatabase extends Dexie {
           .bulkPut(names.map((name) => ({ name })));
       });
     this.version(4).stores({ screenshots: "id, date" });
+    this.version(5).stores({ templates: "id" });
+  }
+
+  async savePlanTemplate(plan: PlanTemplate): Promise<void> {
+    await this.templates.put({
+      ...planTemplateSchema.parse(plan),
+      id: "default",
+    });
   }
 
   async addScreenshots(date: string, files: File[]): Promise<void> {
     const screenshots = files.map((file) => {
       validateScreenshot(date, file);
       return {
-        id: crypto.randomUUID(),
+        id: createId(),
         date,
         name: file.name || "Pasted image",
         image: new Blob([file], { type: file.type }),

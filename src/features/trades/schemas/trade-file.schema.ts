@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { z } from "zod";
-import { largerCents, smallerCents, toCents } from "../../../lib/money";
+import { largerCents, smallerCents, toCents } from "@/lib/money";
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const MAX_TRADES = 50_000;

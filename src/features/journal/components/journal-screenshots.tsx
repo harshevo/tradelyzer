@@ -1,5 +1,6 @@
 "use client";
 
+import { createId } from "@/lib/id";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ImagePlus, Clipboard, Trash2, X } from "lucide-react";
@@ -115,7 +116,7 @@ export function JournalScreenshots({
         onChange([
           ...images,
           ...files.map((file) => ({
-            id: crypto.randomUUID(),
+            id: createId(),
             date,
             name: file.name || "Pasted image",
             image: new Blob([file], { type: file.type }),
@@ -127,9 +128,7 @@ export function JournalScreenshots({
           screenshotNoun = "Screenshot";
         }
 
-        setMessage(
-          `${screenshotNoun} added. Click Save journal to keep changes.`,
-        );
+        setMessage(`${screenshotNoun} added.`);
       } catch (cause) {
         if (cause instanceof Error && !(cause instanceof DOMException)) {
           setError(cause.message);
@@ -201,9 +200,7 @@ export function JournalScreenshots({
     if (busyRef.current || disabled || !images) return;
     onChange(images.filter((image) => image.id !== id));
     setError("");
-    setMessage(
-      "Screenshot removed from draft. Click Save journal to keep changes.",
-    );
+    setMessage("Screenshot removed.");
   }
 
   return (
@@ -212,17 +209,12 @@ export function JournalScreenshots({
       className="mt-12 max-[640px]:mt-7"
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2
-            id="screenshots-heading"
-            className="text-lg font-medium max-[640px]:text-base"
-          >
-            Screenshots
-          </h2>
-          <p className="mt-2 text-xs text-muted-foreground max-[640px]:text-[10px]">
-            Attach chart images or paste with Ctrl/Cmd + V. Up to 10 MB each.
-          </p>
-        </div>
+        <h2
+          id="screenshots-heading"
+          className="text-lg font-medium max-[640px]:text-base"
+        >
+          Screenshots
+        </h2>
         <div className="flex gap-2">
           <input
             ref={input}
@@ -241,6 +233,7 @@ export function JournalScreenshots({
             variant="outline"
             className="max-[640px]:text-xs"
             disabled={disabled || busy || !images || stored?.error}
+            title="PNG, JPEG, WebP or GIF · Up to 10 MB each"
             onClick={() => input.current?.click()}
           >
             <ImagePlus /> Add images
@@ -250,6 +243,7 @@ export function JournalScreenshots({
             variant="ghost"
             className="max-[640px]:text-xs"
             disabled={disabled || busy || !images || stored?.error}
+            title="Paste an image, or use Ctrl/Cmd + V"
             onClick={() => void pasteImage()}
           >
             <Clipboard /> Paste image
@@ -310,11 +304,6 @@ export function JournalScreenshots({
             </div>
           ))}
         </div>
-      )}
-      {!stored?.error && images && images.length === 0 && (
-        <p className="mt-6 text-sm text-muted-foreground">
-          No screenshots attached yet.
-        </p>
       )}
       <p role="status" className="mt-3 text-xs text-muted-foreground">
         {busy && "Preparing screenshots…"}

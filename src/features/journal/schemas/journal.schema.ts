@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { z } from "zod";
-import { toCents } from "../../../lib/money";
+import { toCents } from "@/lib/money";
 
 export const journalSchema = z.object({
   date: z.string().refine(isJournalDate, "Choose a valid date"),
@@ -19,18 +19,28 @@ export const journalSchema = z.object({
   mood: z.number().int().min(1).max(5).nullable(),
 });
 export type JournalEntry = z.infer<typeof journalSchema>;
+export const planTemplateSchema = journalSchema.pick({
+  bias: true,
+  levels: true,
+  maxLoss: true,
+  plan: true,
+});
+export type PlanTemplate = z.infer<typeof planTemplateSchema>;
 
 export function isJournalDate(date: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) && DateTime.fromISO(date).isValid;
 }
 
-export function emptyJournal(date: string): JournalEntry {
+export function emptyJournal(
+  date: string,
+  template?: PlanTemplate,
+): JournalEntry {
   return {
     date,
-    bias: "neutral",
-    levels: "",
-    maxLoss: "",
-    plan: "",
+    bias: template?.bias ?? "neutral",
+    levels: template?.levels ?? "",
+    maxLoss: template?.maxLoss ?? "",
+    plan: template?.plan ?? "",
     wentWell: "",
     mistakes: "",
     tags: [],

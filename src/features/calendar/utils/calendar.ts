@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import type { Trade } from "../../trades/schemas/trade-file.schema";
+import type { Trade } from "@/features/trades/schemas/trade-file.schema";
 
 export function calendarWeeks(month: DateTime): DateTime[][] {
   const first = month.startOf("month");

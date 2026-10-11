@@ -1,0 +1,42 @@
+name: Deploy with Across
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: across-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build C++ deployment client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ rsync
+          cmake -S .across/client -B .across/build -DACROSS_BUILD_DESKTOP=OFF -DACROSS_BUILD_TESTS=OFF -DACROSS_BUILD_SERVER=OFF
+          cmake --build .across/build --parallel 2
+      - name: Deploy
+        env:
+          ACROSS_REQUIRE_KNOWN_HOST: '1'
+          DEPLOY_HOST: ${{ secrets.ACROSS_HOST }}
+          DEPLOY_USER: ${{ secrets.ACROSS_USER }}
+          DEPLOY_PORT: ${{ secrets.ACROSS_PORT }}
+          DEPLOY_KEY: ${{ secrets.ACROSS_SSH_KEY }}
+          DEPLOY_HOST_KEY: ${{ secrets.ACROSS_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST_KEY"
+          mkdir -p ~/.config/across
+          chmod 700 ~/.config/across
+          trap 'rm -f ~/.config/across/ci-key' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > ~/.config/across/ci-key
+          chmod 600 ~/.config/across/ci-key
+          printf '%s\n' "$DEPLOY_HOST_KEY" > ~/.config/across/known_hosts
+          .across/build/across server add ci --host "$DEPLOY_HOST" --user "${DEPLOY_USER:-ubuntu}" --port "${DEPLOY_PORT:-22}" --identity ~/.config/across/ci-key
+          .across/build/across deploy ci across.json

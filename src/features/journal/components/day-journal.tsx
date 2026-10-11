@@ -20,6 +20,7 @@ import {
   exceedsLossLimit,
   isJournalDate,
   journalSchema,
+  planTemplateSchema,
   type JournalEntry,
 } from "@/features/journal/schemas/journal.schema";
 import {
@@ -37,7 +38,7 @@ import type { Screenshot } from "@/features/journal/utils/screenshots";
 import { JournalScreenshots } from "./journal-screenshots";
 
 const inputClass =
-  "w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/15 max-[640px]:min-w-0 max-[640px]:px-2.5 max-[640px]:py-2 max-[640px]:text-xs";
+  "w-full min-w-0 rounded-lg border border-border bg-card px-3 py-2 text-sm font-normal text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/15 max-[640px]:px-2.5 max-[640px]:text-xs";
 const labelClass =
   "flex flex-col gap-2 text-xs font-medium text-muted-foreground max-[640px]:text-[10px]";
 const defaultTags = ["FOMO", "Moved stop", "Overtraded", "Revenge trade"];
@@ -64,14 +65,21 @@ export function DayJournal({ date }: { date: string }) {
   const stored = useLiveQuery(async () => {
     if (!valid) return null;
     try {
-      const [data, entry, tags] = await Promise.all([
+      const [data, entry, tags, template] = await Promise.all([
         journalDatabase.loadTrades(),
         journalDatabase.journals.get(date),
         journalDatabase.tags.toArray(),
+        journalDatabase.templates.get("default"),
       ]);
-      return { data, entry, tags, error: false };
+      return { data, entry, tags, template, error: false };
     } catch {
-      return { data: null, entry: undefined, tags: [], error: true };
+      return {
+        data: null,
+        entry: undefined,
+        tags: [],
+        template: undefined,
+        error: true,
+      };
     }
   }, [date, valid, retry]);
 
@@ -110,7 +118,7 @@ export function DayJournal({ date }: { date: string }) {
               DateTime.local().zoneName,
             ).get(date) ?? []
           }
-          initial={stored.entry ?? emptyJournal(date)}
+          initial={stored.entry ?? emptyJournal(date, stored.template)}
           hasSaved={!!stored.entry}
           sharedTags={stored.tags.map((tag) => tag.name)}
         />
@@ -149,7 +157,13 @@ function JournalEditor({
   sharedTags: string[];
 }) {
   const [entry, setEntry] = useState(initial);
-  const [saved, setSaved] = useState(initial);
+  const [saved, setSaved] = useState(() => {
+    if (hasSaved) {
+      return initial;
+    }
+
+    return emptyJournal(date);
+  });
   const [images, setImages] = useState<Screenshot[] | null>(null);
   const [savedImages, setSavedImages] = useState<Screenshot[] | null>(null);
   const [preparingImages, setPreparingImages] = useState(false);
@@ -158,14 +172,16 @@ function JournalEditor({
     setSavedImages((current) => current ?? loaded);
   }, []);
   const [saving, setSaving] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateStatus, setTemplateStatus] = useState("");
   const savingRef = useRef(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState(() => {
     if (hasSaved) {
-      return "Saved in this browser";
+      return "Saved";
     }
 
-    return "No journal saved yet";
+    return "";
   });
   const [customTag, setCustomTag] = useState("");
   const [addingTag, setAddingTag] = useState(false);
@@ -199,7 +215,7 @@ function JournalEditor({
   const tags = [...new Set([...defaultTags, ...sharedTags, ...entry.tags])];
 
   useEffect(() => {
-    if (!dirty && !saving && !addingTag) return;
+    if (!dirty && !saving && !addingTag && !savingTemplate) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
@@ -213,6 +229,7 @@ function JournalEditor({
       if (
         saving ||
         addingTag ||
+        savingTemplate ||
         !window.confirm("Leave this day without saving your changes?")
       ) {
         event.preventDefault();
@@ -225,7 +242,7 @@ function JournalEditor({
       window.removeEventListener("beforeunload", beforeUnload);
       document.removeEventListener("click", beforeNavigate, true);
     };
-  }, [dirty, saving, addingTag]);
+  }, [dirty, saving, addingTag, savingTemplate]);
 
   function update<K extends keyof JournalEntry>(
     field: K,
@@ -234,6 +251,8 @@ function JournalEditor({
     setEntry((current) => ({ ...current, [field]: value }));
     setStatus("");
     setError("");
+    if (["bias", "levels", "maxLoss", "plan"].includes(field))
+      setTemplateStatus("");
   }
   function toggleMood(mood: number) {
     if (entry.mood === mood) {
@@ -254,6 +273,29 @@ function JournalEditor({
     }
 
     update("tags", [...entry.tags, tag]);
+  }
+  async function saveTemplate() {
+    if (savingRef.current) return;
+    const parsed = planTemplateSchema.safeParse(entry);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0].message);
+      return;
+    }
+    savingRef.current = true;
+    setSavingTemplate(true);
+    setTemplateStatus("");
+    setError("");
+    try {
+      await journalDatabase.savePlanTemplate(parsed.data);
+      setTemplateStatus("Default saved");
+    } catch {
+      setError(
+        "Couldn’t save your default plan. Check browser storage and try again.",
+      );
+    } finally {
+      savingRef.current = false;
+      setSavingTemplate(false);
+    }
   }
   async function addTag() {
     if (savingRef.current) return;
@@ -300,7 +342,7 @@ function JournalEditor({
       setSaved(parsed.data);
       setSavedImages(images);
       setEntry(parsed.data);
-      setStatus("Saved in this browser");
+      setStatus("Saved");
     } catch {
       setError(
         "Couldn’t save your journal. Your changes are still here; check browser storage and try again.",
@@ -311,7 +353,7 @@ function JournalEditor({
     }
   }
 
-  let saveStatus = status || "No unsaved changes";
+  let saveStatus = status;
 
   if (saving) {
     saveStatus = "Saving…";
@@ -346,14 +388,11 @@ function JournalEditor({
         </div>
       </div>
       <header className="mb-10 max-[640px]:mb-5">
-        <p className="mb-2 text-xs text-muted-foreground">
-          Daily journal · {day.toFormat("yyyy")}
-        </p>
         <h1 className="text-3xl font-medium tracking-tight max-[640px]:text-xl">
-          {day.toFormat("cccc, d MMMM")}
+          {day.toFormat("cccc, d MMMM yyyy")}
         </h1>
         <p className="mt-3 text-xs text-muted-foreground max-[640px]:mt-2 max-[640px]:text-[9px]">
-          {zone.replaceAll("_", " ")} · Trades grouped by local close date
+          {zone.replaceAll("_", " ")}
         </p>
       </header>
       <dl className="mb-10 grid grid-cols-5 gap-6 py-6 text-center max-[640px]:mb-6 max-[640px]:py-3 max-[800px]:gap-2 max-[800px]:[&_dt]:text-[8px] max-[800px]:[&_dd]:text-[clamp(11px,2.6vw,18px)] [&_dt]:mb-2 [&_dt]:text-xs [&_dt]:text-muted-foreground [&_dd]:text-2xl [&_dd]:font-medium [&_dd]:tabular-nums">
@@ -481,10 +520,7 @@ function JournalEditor({
           </div>
         )}
         {trades.length === 0 && (
-          <p className="py-6 text-sm text-muted-foreground">
-            No completed trades for this day. You can still write a plan and
-            review.
-          </p>
+          <p className="py-6 text-sm text-muted-foreground">No trades.</p>
         )}
       </section>
       <form
@@ -494,23 +530,41 @@ function JournalEditor({
         }}
       >
         <fieldset
-          disabled={saving || addingTag}
+          disabled={saving || addingTag || savingTemplate}
           className="grid min-w-0 grid-cols-2 gap-12 disabled:opacity-70 max-[900px]:grid-cols-1 max-[900px]:gap-10 max-[640px]:gap-6"
         >
           <section
             aria-labelledby="plan-heading"
             className="min-w-0 space-y-5 max-[640px]:space-y-3"
           >
-            <div>
-              <p className="mb-1 text-[11px] text-muted-foreground">
-                BEFORE THE SESSION
-              </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2
                 id="plan-heading"
                 className="text-lg font-medium max-[640px]:text-base"
               >
                 Pre-market plan
               </h2>
+              <div className="flex items-center gap-2">
+                {templateStatus && (
+                  <span
+                    role="status"
+                    className="text-[11px] text-muted-foreground"
+                  >
+                    {templateStatus}
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground max-[640px]:text-[10px]"
+                  title="Save bias, levels, daily loss limit and plan for new days. Existing journals stay unchanged."
+                  onClick={() => void saveTemplate()}
+                >
+                  {savingTemplate && "Saving…"}
+                  {!savingTemplate && "Save as default"}
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <label className={labelClass}>
@@ -532,7 +586,7 @@ function JournalEditor({
                 <input
                   className={inputClass}
                   inputMode="decimal"
-                  placeholder="e.g. 250.00"
+                  placeholder="250.00"
                   value={entry.maxLoss}
                   aria-invalid={!validLoss}
                   onChange={(event) => update("maxLoss", event.target.value)}
@@ -545,18 +599,16 @@ function JournalEditor({
                 className={inputClass}
                 rows={3}
                 maxLength={10000}
-                placeholder="Support, resistance, levels to watch…"
                 value={entry.levels}
                 onChange={(event) => update("levels", event.target.value)}
               />
             </label>
             <label className={labelClass}>
-              The plan
+              Plan
               <textarea
                 className={inputClass}
-                rows={6}
+                rows={4}
                 maxLength={10000}
-                placeholder="What setups are you looking for? When will you stay out?"
                 value={entry.plan}
                 onChange={(event) => update("plan", event.target.value)}
               />
@@ -566,10 +618,7 @@ function JournalEditor({
             aria-labelledby="review-heading"
             className="min-w-0 space-y-5 max-[640px]:space-y-3"
           >
-            <div>
-              <p className="mb-1 text-[11px] text-muted-foreground">
-                AFTER THE SESSION
-              </p>
+            <div className="flex min-h-7 items-center">
               <h2
                 id="review-heading"
                 className="text-lg font-medium max-[640px]:text-base"
@@ -583,7 +632,6 @@ function JournalEditor({
                 className={inputClass}
                 rows={3}
                 maxLength={10000}
-                placeholder="Good decisions worth repeating…"
                 value={entry.wentWell}
                 onChange={(event) => update("wentWell", event.target.value)}
               />
@@ -594,7 +642,6 @@ function JournalEditor({
                 className={inputClass}
                 rows={3}
                 maxLength={10000}
-                placeholder="What would you do differently?"
                 value={entry.mistakes}
                 onChange={(event) => update("mistakes", event.target.value)}
               />
@@ -603,14 +650,18 @@ function JournalEditor({
               <p className="mb-2 text-xs font-medium text-muted-foreground">
                 Mistake tags
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
                   <Button
                     type="button"
                     key={tag}
-                    variant={toggleVariant(entry.tags.includes(tag), "outline")}
+                    variant={toggleVariant(entry.tags.includes(tag), "ghost")}
                     size="sm"
-                    className="max-[640px]:text-[10px]"
+                    className={cn(
+                      "rounded-md text-xs max-[640px]:text-[10px]",
+                      !entry.tags.includes(tag) &&
+                        "bg-muted text-muted-foreground",
+                    )}
                     aria-pressed={entry.tags.includes(tag)}
                     onClick={() => toggleTag(tag)}
                   >
@@ -618,12 +669,12 @@ function JournalEditor({
                   </Button>
                 ))}
               </div>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex max-w-72 items-center gap-1">
                 <input
                   aria-label="Custom mistake tag"
-                  className={inputClass}
+                  className={`${inputClass} h-8 text-xs`}
                   maxLength={60}
-                  placeholder="Add your own tag"
+                  placeholder="Add a tag…"
                   value={customTag}
                   onChange={(event) => setCustomTag(event.target.value)}
                   onKeyDown={(event) => {
@@ -635,8 +686,8 @@ function JournalEditor({
                 />
                 <Button
                   type="button"
-                  variant="outline"
-                  className="h-10"
+                  variant="ghost"
+                  size="icon"
                   aria-label="Add mistake tag"
                   onClick={() => void addTag()}
                 >
@@ -644,12 +695,17 @@ function JournalEditor({
                 </Button>
               </div>
             </div>
-            <div>
-              <p className="mb-2 text-xs font-medium text-muted-foreground">
-                Mood · 1 low, 5 great
-              </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Mood
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  1 low · 5 great
+                </p>
+              </div>
               <div
-                className="flex gap-2"
+                className="inline-flex gap-1 rounded-lg bg-muted p-1"
                 role="group"
                 aria-label="Session mood"
               >
@@ -658,8 +714,8 @@ function JournalEditor({
                     type="button"
                     key={mood}
                     size="icon"
-                    className="max-[640px]:size-7 max-[640px]:text-xs"
-                    variant={toggleVariant(entry.mood === mood, "outline")}
+                    className="rounded-md text-xs max-[640px]:size-7"
+                    variant={toggleVariant(entry.mood === mood, "ghost")}
                     aria-label={`Mood ${mood}`}
                     aria-pressed={entry.mood === mood}
                     onClick={() => toggleMood(mood)}
@@ -677,7 +733,7 @@ function JournalEditor({
           onLoad={imagesLoaded}
           onChange={attachmentsChanged}
           onBusy={setPreparingImages}
-          disabled={saving}
+          disabled={saving || savingTemplate}
           hasChanges={screenshotsChanged}
         />
         <div className="sticky bottom-0 max-[640px]:static mt-10 flex items-center justify-between gap-4 bg-background py-5 max-[640px]:mt-6 max-[640px]:py-3">
@@ -693,7 +749,12 @@ function JournalEditor({
             type="submit"
             size="lg"
             disabled={
-              saving || addingTag || preparingImages || !images || !dirty
+              saving ||
+              savingTemplate ||
+              addingTag ||
+              preparingImages ||
+              !images ||
+              !dirty
             }
           >
             {saving && "Saving…"}

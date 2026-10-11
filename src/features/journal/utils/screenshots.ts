@@ -1,4 +1,4 @@
-import { isJournalDate } from "../schemas/journal.schema";
+import { isJournalDate } from "@/features/journal/schemas/journal.schema";
 
 export type Screenshot = {
   id: string;

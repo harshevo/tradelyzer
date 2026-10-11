@@ -1,11 +1,11 @@
 import "fake-indexeddb/auto";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { JournalDatabase } from "./journal-database";
-import { parseJson } from "../../features/trades/schemas/trade-file.schema";
+import { JournalDatabase } from "@/lib/db/journal-database";
+import { parseJson } from "@/features/trades/schemas/trade-file.schema";
 
 const fixture = parseJson(
-  readFileSync(new URL("../../../../trades.json", import.meta.url), "utf8"),
+  readFileSync(new URL("../../trades.json", import.meta.url), "utf8"),
 );
 const databases: JournalDatabase[] = [];
 function open(name = crypto.randomUUID()) {
@@ -52,7 +52,7 @@ describe("persistent trade imports", () => {
 it("upgrades version 1 without losing trades and persists separate day entries", async () => {
   const { default: Dexie } = await import("dexie");
   const { emptyJournal } = await import(
-    "../../features/journal/schemas/journal.schema"
+    "@/features/journal/schemas/journal.schema"
   );
   const name = crypto.randomUUID();
   const legacy = new Dexie(name);
@@ -88,7 +88,7 @@ it("upgrades version 1 without losing trades and persists separate day entries",
 
 it("shares custom tags across days and reloads without selecting them on other days", async () => {
   const { emptyJournal } = await import(
-    "../../features/journal/schemas/journal.schema"
+    "@/features/journal/schemas/journal.schema"
   );
   const db = open();
   expect(await db.addTag("  Late entry  ")).toBe("Late entry");
@@ -110,7 +110,7 @@ it("shares custom tags across days and reloads without selecting them on other d
 it("migrates existing journal tags into the shared library without changing entries", async () => {
   const { default: Dexie } = await import("dexie");
   const { emptyJournal } = await import(
-    "../../features/journal/schemas/journal.schema"
+    "@/features/journal/schemas/journal.schema"
   );
   const name = crypto.randomUUID();
   const legacy = new Dexie(name);
@@ -195,7 +195,7 @@ it("rejects invalid screenshot batches and preserves saved images after storage 
 it("upgrades existing journals and tag libraries without losing them", async () => {
   const { default: Dexie } = await import("dexie");
   const { emptyJournal } = await import(
-    "../../features/journal/schemas/journal.schema"
+    "@/features/journal/schemas/journal.schema"
   );
   const name = crypto.randomUUID();
   const legacy = new Dexie(name);
@@ -212,7 +212,7 @@ it("upgrades existing journals and tag libraries without losing them", async () 
 
 it("commits screenshot drafts only with the journal and rolls back failed saves", async () => {
   const { emptyJournal } = await import(
-    "../../features/journal/schemas/journal.schema"
+    "@/features/journal/schemas/journal.schema"
   );
   const db = open();
   const entry = emptyJournal("2026-09-12");
@@ -243,7 +243,7 @@ it("commits screenshot drafts only with the journal and rolls back failed saves"
 
 it("prevents attachment changes from modifying another day's screenshots", async () => {
   const { emptyJournal } = await import(
-    "../../features/journal/schemas/journal.schema"
+    "@/features/journal/schemas/journal.schema"
   );
   const db = open();
   const entry = emptyJournal("2026-09-12");
@@ -262,4 +262,73 @@ it("prevents attachment changes from modifying another day's screenshots", async
   ).rejects.toThrow("another day");
   expect(await db.screenshots.get(screenshot.id)).toBeDefined();
   expect(await db.journals.count()).toBe(0);
+});
+
+it("persists and replaces the default plan without saving or changing day journals", async () => {
+  const { emptyJournal } = await import(
+    "@/features/journal/schemas/journal.schema"
+  );
+  const db = open();
+  const entry = { ...emptyJournal("2026-09-08"), plan: "Original day plan" };
+  await db.saveJournal(entry);
+  const template = {
+    bias: "bullish" as const,
+    levels: "Previous high",
+    maxLoss: "200.01",
+    plan: "Wait for confirmation",
+  };
+  await db.savePlanTemplate(template);
+  db.close();
+  const reopened = open(db.name);
+  const restored = await reopened.templates.get("default");
+  expect(restored).toEqual({ ...template, id: "default" });
+  expect(emptyJournal("2026-09-09", restored).plan).toBe(template.plan);
+  expect(await reopened.journals.get("2026-09-09")).toBeUndefined();
+  await reopened.savePlanTemplate({ ...template, plan: "New routine" });
+  expect(await reopened.templates.count()).toBe(1);
+  expect((await reopened.templates.get("default"))?.plan).toBe("New routine");
+  expect(await reopened.journals.get(entry.date)).toEqual(entry);
+  await expect(
+    reopened.savePlanTemplate({ ...template, maxLoss: "-1" }),
+  ).rejects.toThrow();
+  vi.spyOn(reopened.templates, "put").mockRejectedValueOnce(
+    new Error("Storage full"),
+  );
+  await expect(reopened.savePlanTemplate(template)).rejects.toThrow(
+    "Storage full",
+  );
+  expect((await reopened.templates.get("default"))?.plan).toBe("New routine");
+});
+
+it("upgrades version 4 without losing journals, tags, imports or screenshot blobs", async () => {
+  const { default: Dexie } = await import("dexie");
+  const { emptyJournal } = await import(
+    "@/features/journal/schemas/journal.schema"
+  );
+  const name = crypto.randomUUID();
+  const legacy = new Dexie(name);
+  legacy.version(4).stores({
+    imports: "id",
+    journals: "date",
+    tags: "name",
+    screenshots: "id, date",
+  });
+  const entry = emptyJournal("2026-09-08");
+  const screenshot = {
+    id: "chart",
+    date: entry.date,
+    name: "chart.png",
+    image: new Blob(["chart"], { type: "image/png" }),
+  };
+  await legacy.table("imports").put({ id: "active", data: fixture });
+  await legacy.table("journals").put(entry);
+  await legacy.table("tags").put({ name: "Late entry" });
+  await legacy.table("screenshots").put(screenshot);
+  legacy.close();
+  const db = open(name);
+  expect(await db.templates.count()).toBe(0);
+  expect(await db.loadTrades()).toEqual(fixture);
+  expect(await db.journals.get(entry.date)).toEqual(entry);
+  expect(await db.tags.toArray()).toEqual([{ name: "Late entry" }]);
+  expect(await (await db.screenshots.get("chart"))?.image.text()).toBe("chart");
 });

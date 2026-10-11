@@ -1,10 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { parseJson, summarizeTrades } from "./trade-file.schema";
-import { formatMoney, toCents } from "../../../lib/money";
+import {
+  parseJson,
+  summarizeTrades,
+} from "@/features/trades/schemas/trade-file.schema";
+import { formatMoney, toCents } from "@/lib/money";
 
 const fixture = readFileSync(
-  new URL("../../../../../trades.json", import.meta.url),
+  new URL("../../trades.json", import.meta.url),
   "utf8",
 );
 const valid = JSON.parse(fixture);

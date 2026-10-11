@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DateTime } from "luxon";
-import { calendarWeeks, groupByCloseDay } from "./calendar";
-import type { Trade } from "../../trades/schemas/trade-file.schema";
+import {
+  calendarWeeks,
+  groupByCloseDay,
+} from "@/features/calendar/utils/calendar";
+import type { Trade } from "@/features/trades/schemas/trade-file.schema";
 
 const trade = (closedAt: string) => ({ closedAt }) as Trade;
 

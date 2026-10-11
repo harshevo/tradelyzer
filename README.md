@@ -34,9 +34,13 @@ Imported account metadata and completed trades are saved in IndexedDB through De
 
 The calendar restores saved data on reload. Imports report success only after the write completes; failed saves preserve the existing import and allow retry. Data stays in the same browser profile and origin, with no server upload or cross-device sync. Clearing site data, private-session cleanup, browser eviction, or storage limits can remove or prevent storage. Keep the source JSON as a backup. Large imports are read as one snapshot; indexed per-trade queries can be added if needed.
 
+## Default plan template
+
+Fill the pre-market fields and choose **Save as default** to store market bias, key levels, max daily loss, and plan text. Version 5 adds a separate IndexedDB table holding one default template. Days without saved journals start with these values; reviews, tags, mood, and screenshots are never copied. Prefilled values are a draft until **Save journal**. Saving or replacing the default does not save the current journal, overwrite existing journals, or change an already-open draft. To update the template, edit the four fields and save it again. Save blank fields with neutral bias to reset the default. Templates share the same browser storage limits as journals.
+
 ## Remaining scope
 
-Default plan templates are not implemented yet. Day journals include bias, key levels, an exact-cent loss limit, plan/review text, custom mistake tags, and mood. Use Save journal to persist edits; navigation warns about unsaved changes. Saved entries and exceeded loss limits are indicated on the calendar. A warning appears only when net loss strictly exceeds the limit, not when equal. Journals belong to local dates and are shared across replacement trade imports; separate accounts and timezone changes are not isolated. Their persistence will be added with those features through versioned Dexie migrations. Settings remains a placeholder.
+Day journals include bias, key levels, an exact-cent loss limit, plan/review text, custom mistake tags, and mood. Use Save journal to persist edits; navigation warns about unsaved changes. Saved entries and exceeded loss limits are indicated on the calendar. A warning appears only when net loss strictly exceeds the limit, not when equal. Journals and the default template are shared across replacement trade imports; separate accounts and timezone changes are not isolated. Account separation and cross-device sync would be next steps. Settings remains a placeholder.
 
 ## Checks
 
@@ -70,3 +74,17 @@ Color tokens live in `src/app/globals.css` and are exposed as Tailwind utilities
 | Error surface | `bg-danger-surface` / `border-danger-border` | `#FFF1F2` / `#FECDD3` | Error messages |
 
 Reserve saturated blue for primary actions and active/focused interactions. Keep the logo and date marker neutral. Financial status colors express profit/loss independently of the brand. Use the shared Button component for CTA styling. Equivalent dark tokens are defined for future theme use.
+
+## DigitalOcean deployment through Across
+
+`across.json` selects a local build and deploys `.next/standalone` to
+`root@178.128.144.213`, served by Nginx with Node listening on loopback port 4100.
+Run Deploy in Across after loading this manifest. `npm run build:deploy` builds
+on the local machine, copies static/public assets, and packages pinned Linux x64
+Sharp libraries for this Ubuntu VPS. The VPS runs the finished application without
+installing project dependencies or compiling Next.js. It needs Node 20.9+; the
+tested runtime is Node 24.14.1.
+
+To build on the VPS instead, select VPS and Save, set Install to `npm ci`, Build to
+`npm run build`, and Start to `HOSTNAME=127.0.0.1 npm start`, then Save again.
+The Linux packaging script is specific to the local-to-Ubuntu-x64 deployment.

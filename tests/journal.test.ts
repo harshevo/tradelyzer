@@ -4,14 +4,39 @@ import {
   exceedsLossLimit,
   isJournalDate,
   journalSchema,
-} from "./journal.schema";
+  planTemplateSchema,
+} from "@/features/journal/schemas/journal.schema";
 import {
   summarizeTrades,
   type Trade,
-} from "../../trades/schemas/trade-file.schema";
-import { toCents } from "../../../lib/money";
+} from "@/features/trades/schemas/trade-file.schema";
+import { toCents } from "@/lib/money";
 
 describe("day journal logic", () => {
+  it("prefills only premarket fields, leaving reviews and dates specific to each day", () => {
+    const source = {
+      ...emptyJournal("2026-09-08"),
+      bias: "bullish" as const,
+      levels: "Previous day high",
+      maxLoss: "200.01",
+      plan: "Wait for confirmation",
+      wentWell: "Good entry",
+      tags: ["FOMO"],
+      mood: 5,
+    };
+    const template = planTemplateSchema.parse(source);
+    expect(template).toEqual({
+      bias: "bullish",
+      levels: source.levels,
+      maxLoss: "200.01",
+      plan: source.plan,
+    });
+    expect(emptyJournal("2026-09-09", template)).toEqual({
+      ...emptyJournal("2026-09-09"),
+      ...template,
+    });
+    expect(emptyJournal("2026-09-10", template).tags).not.toBe(source.tags);
+  });
   it("validates dates and optional exact-cent loss limits", () => {
     expect(isJournalDate("2026-02-30")).toBe(false);
     expect(isJournalDate("2028-02-29")).toBe(true);
