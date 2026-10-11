@@ -133,6 +133,9 @@ std::filesystem::path create_pipeline(const std::filesystem::path& project, cons
   std::filesystem::create_directories(project / ".across/client/src");
   for (const auto& directory : {"core", "cli"}) std::filesystem::copy(source / "src" / directory, project / ".across/client/src" / directory, std::filesystem::copy_options::recursive);
   std::filesystem::copy(source / "include", project / ".across/client/include", std::filesystem::copy_options::recursive);
+  std::filesystem::copy(source / "src/server", project / ".across/client/src/server", std::filesystem::copy_options::recursive);
+  if (std::filesystem::is_directory(source / "tests"))
+    std::filesystem::copy(source / "tests", project / ".across/client/tests", std::filesystem::copy_options::recursive);
   std::filesystem::copy_file(source / "CMakeLists.txt", project / ".across/client/CMakeLists.txt");
   std::filesystem::create_directories(path.parent_path());
   std::ofstream output(path);

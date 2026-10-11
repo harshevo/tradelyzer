@@ -5,7 +5,7 @@ import { JournalDatabase } from "@/lib/db/journal-database";
 import { parseJson } from "@/features/trades/schemas/trade-file.schema";
 
 const fixture = parseJson(
-  readFileSync(new URL("../../trades.json", import.meta.url), "utf8"),
+  readFileSync(new URL("./fixtures/trades.json", import.meta.url), "utf8"),
 );
 const databases: JournalDatabase[] = [];
 function open(name = crypto.randomUUID()) {
@@ -331,4 +331,44 @@ it("upgrades version 4 without losing journals, tags, imports or screenshot blob
   expect(await db.journals.get(entry.date)).toEqual(entry);
   expect(await db.tags.toArray()).toEqual([{ name: "Late entry" }]);
   expect(await (await db.screenshots.get("chart"))?.image.text()).toBe("chart");
+});
+
+it("limits each journal to ten tags and preserves the saved entry on overflow", async () => {
+  const { emptyJournal } = await import(
+    "@/features/journal/schemas/journal.schema"
+  );
+  const db = open();
+  const entry = {
+    ...emptyJournal("2026-10-11"),
+    tags: Array.from({ length: 10 }, (_, i) => `Tag ${i + 1}`),
+  };
+  await db.saveJournal(entry);
+  await expect(
+    db.saveJournal({ ...entry, tags: [...entry.tags, "Tag 11"] }),
+  ).rejects.toThrow("Choose up to 10 mistake tags.");
+  expect(await db.journals.get(entry.date)).toEqual(entry);
+});
+
+it("preserves legacy journals with more than ten tags while preventing new overflow", async () => {
+  const { emptyJournal, journalSchemaFor } = await import(
+    "@/features/journal/schemas/journal.schema"
+  );
+  const db = open();
+  const entry = {
+    ...emptyJournal("2026-09-08"),
+    tags: Array.from({ length: 20 }, (_, i) => `Legacy ${i}`),
+  };
+  await db.journals.put(entry);
+  const edited = { ...entry, plan: "Updated without losing tags" };
+  expect(journalSchemaFor(entry).safeParse(edited).success).toBe(true);
+  await db.saveJournal(edited);
+  expect(await db.journals.get(entry.date)).toEqual(edited);
+  await expect(
+    db.saveJournal({ ...edited, tags: [...edited.tags, "New tag"] }),
+  ).rejects.toThrow("Existing tags");
+  await db.saveJournal({ ...edited, tags: edited.tags.slice(0, 10) });
+  await expect(db.saveJournal(edited)).rejects.toThrow("Choose up to 10");
+  await expect(
+    db.saveJournal({ ...edited, date: "2026-09-09" }),
+  ).rejects.toThrow("Choose up to 10");
 });

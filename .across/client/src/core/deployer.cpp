@@ -48,11 +48,17 @@ std::filesystem::path executable_path() {
 #endif
 }
 
+bool is_server_bundle(const std::filesystem::path& directory) {
+  return std::filesystem::is_regular_file(directory / "CMakeLists.txt") &&
+         std::filesystem::is_regular_file(directory / "src/server/main.cpp") &&
+         std::filesystem::is_regular_file(directory / "include/across/models.hpp");
+}
+
 std::filesystem::path find_server_source_directory() {
   if (const char* custom = std::getenv("ACROSS_SERVER_BUNDLE");
       custom != nullptr && *custom != '\0') {
     const std::filesystem::path candidate{custom};
-    if (std::filesystem::is_regular_file(candidate / "CMakeLists.txt")) {
+    if (is_server_bundle(candidate)) {
       return candidate;
     }
     throw std::runtime_error("ACROSS_SERVER_BUNDLE is not a valid server source bundle");
@@ -62,18 +68,18 @@ std::filesystem::path find_server_source_directory() {
   if (!executable.empty()) {
     const auto resources = executable.parent_path().parent_path() / "Resources" /
                            "server";
-    if (std::filesystem::is_regular_file(resources / "CMakeLists.txt")) {
+    if (is_server_bundle(resources)) {
       return std::filesystem::weakly_canonical(resources);
     }
     const auto installed = executable.parent_path().parent_path() / "share" /
                            "across" / "server";
-    if (std::filesystem::is_regular_file(installed / "CMakeLists.txt")) {
+    if (is_server_bundle(installed)) {
       return std::filesystem::weakly_canonical(installed);
     }
   }
 
   const std::filesystem::path development{ACROSS_SOURCE_DIR};
-  if (std::filesystem::is_regular_file(development / "CMakeLists.txt")) {
+  if (is_server_bundle(development)) {
     return development;
   }
   throw std::runtime_error("The bundled across-server source could not be located");
@@ -116,6 +122,7 @@ ProcessResult Deployer::doctor(const OutputCallback& on_output) const {
 }
 
 ProcessResult Deployer::bootstrap(const OutputCallback& on_output) const {
+  const std::filesystem::path source_root = server_source_directory();
   const std::string remote_root =
       "/tmp/across-bootstrap-" + transport_.profile().id;
   auto prerequisites = transport_.execute_shell(bootstrap_prerequisites_script(), std::chrono::minutes{20}, on_output);
@@ -128,7 +135,6 @@ ProcessResult Deployer::bootstrap(const OutputCallback& on_output) const {
     return failure_from(prepared, "Could not prepare the remote build directory");
   }
 
-  const std::filesystem::path source_root = server_source_directory();
   const std::vector<std::string> excludes{
       ".git", "build", "build-*", ".cache", ".DS_Store"};
   auto uploaded = transport_.sync_directory(source_root, remote_root, excludes,

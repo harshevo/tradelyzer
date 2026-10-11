@@ -6,6 +6,7 @@ import {
 } from "@/features/trades/schemas/trade-file.schema";
 import {
   journalSchema,
+  journalSchemaFor,
   planTemplateSchema,
   type JournalEntry,
   type PlanTemplate,
@@ -73,10 +74,9 @@ export class JournalDatabase extends Dexie {
       removed: [],
     },
   ): Promise<void> {
-    const validated = journalSchema.parse(entry);
     for (const screenshot of changes.added) {
       validateScreenshot(screenshot.date, screenshot.image);
-      if (screenshot.date !== validated.date)
+      if (screenshot.date !== entry.date)
         throw new Error("Screenshot belongs to another day.");
     }
     await this.transaction(
@@ -85,6 +85,8 @@ export class JournalDatabase extends Dexie {
       this.tags,
       this.screenshots,
       async () => {
+        const previous = await this.journals.get(entry.date);
+        const validated = journalSchemaFor(previous).parse(entry);
         for (const id of changes.removed) {
           const screenshot = await this.screenshots.get(id);
           if (screenshot && screenshot.date !== validated.date)

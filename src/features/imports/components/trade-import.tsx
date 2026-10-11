@@ -66,16 +66,13 @@ export function TradeImport({ onImport }: TradeImportProps) {
   }
 
   return (
-    <section
-      aria-labelledby={titleId}
-      className="mt-16 bg-transparent pb-3 @max-[800px]:mt-10 @max-[800px]:pb-0"
-    >
-      <div className="flex items-center justify-between gap-6 [&_h2]:text-[21px] [&_h2]:leading-[1.3] [&_h2]:font-[550] [&_h2]:tracking-[-0.5px] @max-[800px]:flex-wrap @max-[800px]:items-start @max-[800px]:gap-[14px]">
-        <h2 id={titleId}>Import trades</h2>
-      </div>
+    <section aria-labelledby={titleId} className="mt-7">
+      <h2 id={titleId} className="sr-only">
+        Import file
+      </h2>
       <div
         className={cn(
-          "mt-6 flex items-center gap-5 rounded-[22px] border border-dashed p-8 [corner-shape:squircle] @max-[800px]:flex-wrap @max-[800px]:gap-3 @max-[800px]:p-5",
+          "flex flex-col items-center gap-4 rounded-2xl border border-dashed px-5 py-10 text-center",
           dragging && "border-primary bg-accent",
           !dragging && "border-border-strong bg-muted",
         )}
@@ -102,7 +99,7 @@ export function TradeImport({ onImport }: TradeImportProps) {
         <div className="grid size-[46px] place-items-center rounded-xl border border-border bg-card text-muted-foreground [corner-shape:squircle]">
           <Upload size={23} strokeWidth={1.5} aria-hidden="true" />
         </div>
-        <div className="flex-1 [&_strong]:text-[13px] [&_strong]:font-[550] [&_p]:mt-[5px] [&_p]:text-[11px] [&_p]:text-muted-foreground @max-[800px]:basis-[65%]">
+        <div className="[&_strong]:text-sm [&_strong]:font-medium [&_p]:mt-1.5 [&_p]:text-xs [&_p]:text-muted-foreground">
           <strong>{dropZoneTitle}</strong>
           <p>Up to 10 MB</p>
         </div>
@@ -121,7 +118,8 @@ export function TradeImport({ onImport }: TradeImportProps) {
         />
         <Button
           variant="outline"
-          size="lg"
+          size="sm"
+          className="h-9 px-4"
           disabled={busy || saving}
           onClick={() => inputRef.current?.click()}
         >
@@ -156,15 +154,16 @@ export function TradeImport({ onImport }: TradeImportProps) {
       {preview && (
         <div className="mt-6 border-t border-border pt-6">
           <div className="flex items-center justify-between gap-[15px] [&_h3]:text-[15px] [&_h3]:font-[550] [&>span]:flex [&>span]:items-center [&>span]:gap-1.5 [&>span]:text-[11px] [&>span]:text-muted-foreground">
-            <h3>Ready to import</h3>
-            <span>
-              <Check size={15} aria-hidden="true" />
-              Validation passed
-            </span>
+            <h3>File preview</h3>
           </div>
           <p className="mt-1.5 text-[13px] leading-[1.7] text-muted-foreground">
             {preview.account.name} · {preview.trades.length.toLocaleString()}{" "}
-            trades · {formatMoney(summarizeTrades(preview.trades).net, true)}{" "}
+            trades ·{" "}
+            {formatMoney(
+              summarizeTrades(preview.trades).net,
+              true,
+              preview.account.currency,
+            )}{" "}
             net P&L
           </p>
           <div className="overflow-x-auto">
@@ -172,34 +171,43 @@ export function TradeImport({ onImport }: TradeImportProps) {
               <caption className="sr-only">First five validated trades</caption>
               <thead>
                 <tr>
-                  <th>Trade ID</th>
                   <th>Symbol</th>
                   <th>Side</th>
-                  <th>Close time (as supplied)</th>
+                  <th>Volume</th>
+                  <th>Entry</th>
+                  <th>Exit</th>
                   <th>Net P&L</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.trades.slice(0, 5).map((trade) => (
                   <tr key={trade.id}>
-                    <td>{trade.id}</td>
                     <td>{trade.symbol}</td>
                     <td className="capitalize">{trade.side}</td>
-                    <td>{trade.closedAt}</td>
-                    <td>{formatMoney(summarizeTrades([trade]).net, true)}</td>
+                    <td>{trade.volume}</td>
+                    <td>{trade.entryPrice}</td>
+                    <td>{trade.exitPrice}</td>
+                    <td>
+                      {formatMoney(
+                        summarizeTrades([trade]).net,
+                        true,
+                        preview.account.currency,
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="mt-[18px] flex items-center justify-between gap-4 [&>span]:text-[11px] [&>span]:text-muted-foreground [&>div]:flex [&>div]:gap-2 @max-[800px]:flex-col @max-[800px]:gap-2">
-            <span>
-              First {Math.min(5, preview.trades.length)} rows · replaces current
-              data
-            </span>
+          <p className="mt-5 text-center text-xs text-muted-foreground">
+            Importing replaces all trades currently saved in this browser. Your
+            journal notes and screenshots stay saved.
+          </p>
+          <div className="mt-6 flex justify-center">
             <div>
               <Button
-                size="lg"
+                size="sm"
+                className="h-9 px-4"
                 disabled={saving}
                 onClick={async () => {
                   if (savingRef.current) return;
@@ -224,7 +232,7 @@ export function TradeImport({ onImport }: TradeImportProps) {
               >
                 {saving && "Saving…"}
                 {!saving &&
-                  `Load ${preview.trades.length.toLocaleString()} trades`}
+                  `Import ${preview.trades.length.toLocaleString()} trades`}
                 <ArrowRight />
               </Button>
             </div>

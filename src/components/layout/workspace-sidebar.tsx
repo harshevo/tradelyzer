@@ -3,12 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CalendarDays,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Settings,
-} from "lucide-react";
+import { CalendarDays, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 const navigationItem =
   "flex h-11 items-center gap-3 rounded-[14px] px-3 text-[13px] whitespace-nowrap [corner-shape:squircle] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
@@ -69,19 +64,6 @@ export function WorkspaceSidebar() {
           <CalendarDays aria-hidden="true" className={iconClass} />
           <span className={navigationLabel}>Calendar</span>
         </Link>
-        <button
-          type="button"
-          className={`${navigationItem} cursor-not-allowed text-left text-disabled`}
-          aria-disabled="true"
-          aria-label="Settings (coming soon)"
-          title="Settings — coming soon"
-        >
-          <Settings aria-hidden="true" className={iconClass} />
-          <span className={navigationLabel}>Settings</span>
-          <span className="ml-auto hidden text-[10px] text-muted-foreground min-[801px]:group-data-[expanded=true]/sidebar:inline">
-            Soon
-          </span>
-        </button>
       </nav>
       <div className="shrink-0 pt-4 max-[800px]:hidden">
         <button

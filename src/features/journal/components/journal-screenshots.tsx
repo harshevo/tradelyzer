@@ -56,6 +56,7 @@ export function JournalScreenshots({
   hasChanges: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const pasteButton = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -161,18 +162,18 @@ export function JournalScreenshots({
 
   async function pasteImage() {
     if (busyRef.current || disabled || !images) return;
-    let timeout = 0;
+    setError("");
+    setMessage("");
+    if (!navigator.clipboard?.read) {
+      pasteButton.current?.focus();
+      setMessage(
+        "Press Ctrl/Cmd + V now to paste your screenshot, or choose Add images.",
+      );
+      return;
+    }
     setBusy(true);
     try {
-      const items = await Promise.race([
-        navigator.clipboard.read(),
-        new Promise<ClipboardItem[]>((_, reject) => {
-          timeout = window.setTimeout(
-            () => reject(new Error("Clipboard unavailable")),
-            3000,
-          );
-        }),
-      ]);
+      const items = await navigator.clipboard.read();
       const files: File[] = [];
       for (const item of items) {
         const type = item.types.find((type) => IMAGE_TYPES.includes(type));
@@ -187,11 +188,11 @@ export function JournalScreenshots({
       }
       await attach(files);
     } catch {
-      setError(
-        "Clipboard access isn’t available. Paste with Ctrl/Cmd + V outside a text field, or choose files.",
+      requestAnimationFrame(() => pasteButton.current?.focus());
+      setMessage(
+        "Your browser blocked clipboard access. Press Ctrl/Cmd + V now, or choose Add images.",
       );
     } finally {
-      window.clearTimeout(timeout);
       setBusy(false);
     }
   }
@@ -204,18 +205,12 @@ export function JournalScreenshots({
   }
 
   return (
-    <section
-      aria-labelledby="screenshots-heading"
-      className="mt-12 max-[640px]:mt-7"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2
-          id="screenshots-heading"
-          className="text-lg font-medium max-[640px]:text-base"
-        >
+    <section aria-labelledby="screenshots-heading" className="pt-2">
+      <div className="flex flex-col items-center justify-center gap-3">
+        <h2 id="screenshots-heading" className="text-base font-medium">
           Screenshots
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           <input
             ref={input}
             type="file"
@@ -231,7 +226,8 @@ export function JournalScreenshots({
           <Button
             type="button"
             variant="outline"
-            className="max-[640px]:text-xs"
+            size="sm"
+            className="text-xs"
             disabled={disabled || busy || !images || stored?.error}
             title="PNG, JPEG, WebP or GIF · Up to 10 MB each"
             onClick={() => input.current?.click()}
@@ -239,9 +235,11 @@ export function JournalScreenshots({
             <ImagePlus /> Add images
           </Button>
           <Button
+            ref={pasteButton}
             type="button"
             variant="ghost"
-            className="max-[640px]:text-xs"
+            size="sm"
+            className="text-xs"
             disabled={disabled || busy || !images || stored?.error}
             title="Paste an image, or use Ctrl/Cmd + V"
             onClick={() => void pasteImage()}
@@ -268,7 +266,7 @@ export function JournalScreenshots({
         </p>
       )}
       {!stored?.error && images && images.length > 0 && (
-        <div className="mt-6 grid grid-cols-4 gap-4 max-[1000px]:grid-cols-3 max-[640px]:grid-cols-2 max-[640px]:gap-3">
+        <div className="mt-4 grid grid-cols-4 gap-3 max-[1000px]:grid-cols-3 max-[640px]:grid-cols-2 max-[640px]:gap-3">
           {images.map((screenshot) => (
             <div key={screenshot.id} className="min-w-0">
               <button
@@ -305,10 +303,15 @@ export function JournalScreenshots({
           ))}
         </div>
       )}
-      <p role="status" className="mt-3 text-xs text-muted-foreground">
-        {busy && "Preparing screenshots…"}
-        {!busy && hasChanges && message}
-      </p>
+      {(busy || (message && (!message.endsWith("added.") || hasChanges))) && (
+        <p
+          role="status"
+          className="mt-2 text-center text-xs text-muted-foreground"
+        >
+          {busy && "Preparing screenshots…"}
+          {!busy && message}
+        </p>
+      )}
       {error && (
         <p role="alert" className="mt-3 text-sm text-loss">
           {error}

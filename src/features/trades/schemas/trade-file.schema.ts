@@ -46,7 +46,7 @@ const tradeSchema = z
 const fileSchema = z.object({
   account: z.object({
     name: z.string().trim().min(1).max(120),
-    currency: z.literal("USD"),
+    currency: z.enum(["USD", "USDT"]),
     startingBalance: money.refine(
       (value) => !value.startsWith("-"),
       "Starting balance cannot be negative",

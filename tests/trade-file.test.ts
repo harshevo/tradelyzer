@@ -7,7 +7,7 @@ import {
 import { formatMoney, toCents } from "@/lib/money";
 
 const fixture = readFileSync(
-  new URL("../../trades.json", import.meta.url),
+  new URL("./fixtures/trades.json", import.meta.url),
   "utf8",
 );
 const valid = JSON.parse(fixture);

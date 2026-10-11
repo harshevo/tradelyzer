@@ -7,7 +7,7 @@ project(across VERSION 0.2.0 LANGUAGES CXX)
 
 option(ACROSS_BUILD_CLIENT "Build the local across command-line client" ON)
 option(ACROSS_BUILD_SERVER "Build the remote across-server command-line client" ON)
-option(ACROSS_BUILD_DESKTOP "Build the raylib desktop application" ON)
+option(ACROSS_BUILD_DESKTOP "Build the raylib desktop application" OFF)
 option(ACROSS_BUILD_TESTS "Build automated tests" ON)
 
 if(APPLE AND ACROSS_BUILD_DESKTOP)
